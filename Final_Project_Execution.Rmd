@@ -1,0 +1,111 @@
+---
+title: "Project 2 for IS 607"
+author: "Joy Payton"
+date: "October 6, 2015"
+output: 
+  html_document: 
+    toc: true
+---
+##A Few Caveats
+
+After triggering the Amazon "robot check" several times, we have placed Sys.sleep() commands in a number of places to keep this from happening.  This means that the script takes a surprisingly long time to run.  This is a known issue and a condition of data gathering.
+
+##Amazon Reviews (suggested by Joy Payton)
+
+###Introduction to the Data
+
+The URL for the first page of the Hutzler Banana Slicer can be found here: <http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=1>.  Additional pages can be found by changing the last GET parameter to pageNumber=2, 3, etc.
+
+By using the element inspector of Chrome, I can peek into the html structure and discover that each review is structured in this way:
+```
+div with class "reviews" holds all reviews
+  div with class "review" holds a single review
+    div with class "helpful-votes-count" has text describing how helpful the review has been to other users
+    span with class "a-icon-alt" has text describing the number of stars
+    \<a\> with class "review-title" has title of the review
+    \<a\> with class "author" has the username of the reviewer
+    span with class "review-date" has text containing the date of the review
+    span with class "review-text" contains the review text
+```    
+###Tool Preparation
+
+First, I need to install and load rvest, dplyr, and stringi.  I'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
+```{r}
+library(rvest)
+library(stringi)
+library(dplyr)
+library(stringr)
+```
+###Getting the Amazon Reviews
+
+In order to create a data frame with review text and related metadata, we will create a function that will accomplish several tasks:  
+- It will download the first n pages of reviews (default is n=20) and store the html in the file system of the local computer.
+- It will then use rvest to extract only the review from the html files saved to the file system
+- Finally, it will clean the data and return a data frame.
+
+```{r}
+# BaseURL should be of the form 
+getReviews <-function(base_url, num_pages=20) {
+
+# first, obtain the html once only.  This way, if we have to test various ways to manipulate it, we can do so
+# on our local copies and not keep hitting Amazon's servers
+
+# Create a directory for this product's reviews, using the product name as the directory name.
+directory_name<-str_match(base_url, "amazon.com/(.+)/product-reviews")[2]
+dir.create(directory_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
+
+for (i in 1:num_pages) {
+  current_url<-paste(base_url,i,sep="")
+  filename<-paste(directory_name, "/Page-", i, ".html", sep="")
+  download.file(current_url, filename)
+  Sys.sleep(4)  # Be a good citizen and don't hammer the server
+}
+
+# Now we'll load the first html files and choose just the "reviews" section.  
+# Note that classes are prefixed with a period, so we use ".reviews".  
+# Within the "reviews" section, we have any number of nodes that we need to parse.   
+
+#We first create a list called "reviews" that's empty, then fill it with reviews from each html file.
+
+reviews<-list()
+for (i in 1:length(list.files(directory_name))) {
+  amazon_html <- read_html(paste(directory_name, "/Page-", i, ".html", sep=""))
+  review_section<-amazon_html %>% html_node(".reviews")
+  reviews<-c(reviews, review_section %>% html_nodes(".review"))
+}
+
+# Now we create vectors for each element we're going to pull out of each review.
+
+attr(reviews, "class")<-"xml_nodeset"
+helpful_votes<-reviews %>% html_nodes(".helpful-votes-count") %>% html_text()
+stars<-reviews %>% html_nodes(".a-icon-alt") %>% html_text()
+title<-reviews %>% html_nodes(".review-title") %>% html_text()
+author<-reviews %>% html_nodes(".author") %>% html_text()
+date<-reviews %>% html_nodes(".review-date") %>% html_text()
+text<-reviews %>% html_nodes(".review-text") %>% html_text()
+
+# Now we column bind those vectors:
+amazon_reviews<-data.frame(cbind(date, title, author, text, stars, helpful_votes))
+head(amazon_reviews)
+
+# I've still got to do some cleanup:  date, stars, and helpful_votes need to have extraneous text removed.
+amazon_reviews$date<-as.Date(amazon_reviews$date, "on %B %d, %Y")
+amazon_reviews$stars<-as.numeric(gsub(" out.+", "", amazon_reviews$stars))
+amazon_reviews$helpful_votes<-gsub(" of.+", "", amazon_reviews$helpful_votes)
+amazon_reviews$helpful_votes<-as.numeric(gsub(",", "", amazon_reviews$helpful_votes))
+return(amazon_reviews)
+}
+```
+
+Now we can use that function to get as many pages of reviews as we want from as many products as we want. Besides the data for the Banana Slicer, we're also interested in reviews on the Bic Cristal For Her pen, the Denon AKDL1 Dedicated Link Cable (Discontinued by Manufacturer), Uranium Ore, and the Samsung UN85S9 Framed 85-Inch 4K Ultra HD 3D Smart LED TV, all of which are characterized by (seemingly 100%) satirical reviews.
+
+Please note that running this script multiple times will result in an error, because of a robot check!
+
+```{r}
+banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=")
+bic_reviews<-getReviews("http://www.amazon.com/BIC-Cristal-1-0mm-Black-MSLP16-Blk/product-reviews/B004F9QBE6/?sortBy=bySubmissionDateDescending&pageNumber=")
+cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontinued-Manufacturer/product-reviews/B000I1X6PM/?sortBy=bySubmissionDateDescending&pageNumber=")
+uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/product-reviews/B000796XXM/?sortBy=bySubmissionDateDescending&pageNumber=")
+tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=")
+```
+
