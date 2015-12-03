@@ -101,15 +101,44 @@ Now we can use that function to get as many pages of reviews as we want from as 
 
 Please note that running this script multiple times will result in an error, because of a robot check!
 
-
 ```{r}
-#banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=")
+banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=")
 bic_reviews<-getReviews("http://www.amazon.com/BIC-Cristal-1-0mm-Black-MSLP16-Blk/product-reviews/B004F9QBE6/?sortBy=bySubmissionDateDescending&pageNumber=")
 cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontinued-Manufacturer/product-reviews/B000I1X6PM/?sortBy=bySubmissionDateDescending&pageNumber=")
 uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/product-reviews/B000796XXM/?sortBy=bySubmissionDateDescending&pageNumber=")
 tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=")
 ```
 
+## Basic stats
+
+Here we can do basic stats that don't require text mining: like number of words per review, number of words per title, number of words in all caps, etc.  Again, we'll create a function that will allow us to apply the analysis to any data frame.
+
+
+```{r}
+library(stringi)
+
+countWords<-function (df) {
+# Count words
+df<-mutate(df, num_words_title = stri_count(title,regex="\\S+"))
+df<-mutate(df, num_words_review = stri_count(text,regex="\\S+"))
+# Count words in all caps that aren't single letter words like I, A, etc.
+df<-mutate(df, num_caps_title = stri_count(title,regex="[A-Z]{2,}"))
+df<-mutate(df, num_caps_review = stri_count(text,regex="[A-Z]{2,}"))
+# Count number of exclamation points
+df<-mutate(df, num_excl_title = stri_count(title,regex="!"))
+df<-mutate(df, num_excl_review = stri_count(text,regex="!"))
+# Count number of question marks
+df<-mutate(df, num_quest_title = stri_count(title,regex="\\?"))
+df<-mutate(df, num_quest_review = stri_count(text,regex="\\?"))
+return(df)
+}
+
+banana_slicer_reviews<-countWords(banana_slicer_reviews)
+bic_reviews<-countWords(bic_reviews)
+cable_reviews<-countWords(cable_reviews)
+uranium_reviews<-countWords(uranium_reviews)
+tv_reviews<-countWords(tv_reviews)
+```
 
 ##Creating Corpora
  
@@ -118,6 +147,7 @@ For preprocessing purposes, I will create one corpus for each product.  This wil
 
 ```{r}
 library(tm)
+library(SnowballC)
 ```
 
 ```{r}
@@ -136,6 +166,18 @@ makeCorpus("corpus_bic", bic_reviews)
 bic_corpus <- Corpus(DirSource("corpus_bic"))  
 
 # do cleanup here -- stemming, removal of punctuation, etc.
+# First we can try a standard bag-of-words, where we remove punctuation, set everything to 
+# lower case, and do word stemming. It could be that this does the trick.  If not,
+# we will have to do more conservative preprocessing to conserve non-word clues like
+# nonstandard punctuation or use of capital letters.
+
+bic_corpus <- tm_map(bic_corpus, removePunctuation)   
+bic_corpus <- tm_map(bic_corpus, removeNumbers)   
+bic_corpus <- tm_map(bic_corpus, content_transformer(tolower))   
+bic_corpus <- tm_map(bic_corpus, removeWords, stopwords("english"))   
+bic_corpus <- tm_map(bic_corpus, removeWords, c("bic", "cristal"))   
+bic_corpus <- tm_map(bic_corpus, stemDocument)   
+
 
 dtm <- DocumentTermMatrix(bic_corpus)   
 inspect(dtm)
