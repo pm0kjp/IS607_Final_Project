@@ -1,18 +1,16 @@
 ---
-title: "Project 2 for IS 607"
-author: "Joy Payton"
-date: "October 6, 2015"
+title: "IS 607 Final Project"
+author: "The Karens"
+date: "Fall 2015"
 output: 
   html_document: 
     toc: true
 ---
-##A Few Caveats
+#A Few Caveats
 
 After triggering the Amazon "robot check" several times, we have placed Sys.sleep() commands in a number of places to keep this from happening.  This means that the script takes a surprisingly long time to run.  This is a known issue and a condition of data gathering.
 
-##Amazon Reviews (suggested by Joy Payton)
-
-###Introduction to the Data
+#Introduction to the Data
 
 The URL for the first page of the Hutzler Banana Slicer can be found here: <http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=1>.  Additional pages can be found by changing the last GET parameter to pageNumber=2, 3, etc.
 
@@ -27,7 +25,7 @@ div with class "reviews" holds all reviews
     span with class "review-date" has text containing the date of the review
     span with class "review-text" contains the review text
 ```    
-###Tool Preparation
+#Tool Preparation
 
 First, I need to install and load rvest, dplyr, and stringi.  I'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
 ```{r}
@@ -36,7 +34,7 @@ library(stringi)
 library(dplyr)
 library(stringr)
 ```
-###Getting the Amazon Reviews
+#Getting the Amazon Reviews
 
 In order to create a data frame with review text and related metadata, we will create a function that will accomplish several tasks:  
 - It will download the first n pages of reviews (default is n=20) and store the html in the file system of the local computer.
@@ -109,7 +107,7 @@ uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/pro
 tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=")
 ```
 
-## Basic stats
+# Basic stats
 
 Here we can do basic stats that don't require text mining: like number of words per review, number of words per title, number of words in all caps, etc.  Again, we'll create a function that will allow us to apply the analysis to any data frame.
 
@@ -140,7 +138,7 @@ uranium_reviews<-countWords(uranium_reviews)
 tv_reviews<-countWords(tv_reviews)
 ```
 
-##Creating Corpora
+#Creating Corpora
  
 For preprocessing purposes, I will create one corpus for each product.  This will allow me to treat the name of the product as if it were a stopword, ignoring words contained in the product name in the construction of the term document matrix.
 (Is this how we want to proceed?  Unsure.)
