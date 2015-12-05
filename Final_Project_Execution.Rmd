@@ -115,6 +115,7 @@ Here we can do basic stats that don't require text mining: like number of words 
 
 __We could also here count non-dictionary words, which might indicate humor / satire ... this could be a way to include a different data source, like a dictionary CSV...  OR we could get a list of high sentiment words, which could also be an indicator.__
 
+__We could add those dictionaries to a free trial of Google SQL...  https://console.cloud.google.com/freetrial?pli=1 ___
 
 ```{r}
 countWords<-function (df) {
