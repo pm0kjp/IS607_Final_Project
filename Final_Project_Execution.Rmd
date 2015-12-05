@@ -14,7 +14,7 @@ After triggering the Amazon "robot check" several times, we have placed Sys.slee
 
 The URL for the first page of the Hutzler Banana Slicer can be found here: <http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=1>.  Additional pages can be found by changing the last GET parameter to pageNumber=2, 3, etc.
 
-By using the element inspector of Chrome, I can peek into the html structure and discover that each review is structured in this way:
+By using the element inspector of Chrome, we can peek into the html structure and discover that each review is structured in this way:
 ```
 div with class "reviews" holds all reviews
   div with class "review" holds a single review
@@ -27,7 +27,7 @@ div with class "reviews" holds all reviews
 ```    
 #Tool Preparation
 
-First, I need to install and load rvest, dplyr, and stringi.  I'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
+First, we need to install and load rvest, dplyr, and stringi.  We'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
 ```{r}
 library(rvest)
 library(stringi)
@@ -45,8 +45,8 @@ In order to create a data frame with review text and related metadata, we will c
 # BaseURL should be of the form 
 getReviews <-function(base_url, num_pages=20) {
 
-# first, obtain the html once only.  This way, if we have to test various ways to manipulate it, we can do so
-# on our local copies and not keep hitting Amazon's servers
+# first, obtain the html once only.  This way, if we have to test various ways to 
+# manipulate it, we can do so on our local copies and not keep hitting Amazon's servers
 
 # Create a directory for this product's reviews, using the product name as the directory name.
 directory_name<-str_match(base_url, "amazon.com/(.+)/product-reviews")[2]
@@ -106,15 +106,17 @@ cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontin
 uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/product-reviews/B000796XXM/?sortBy=bySubmissionDateDescending&pageNumber=")
 tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=")
 ```
+__We need to add non-satire reviews here... __
+
 
 # Basic stats
 
 Here we can do basic stats that don't require text mining: like number of words per review, number of words per title, number of words in all caps, etc.  Again, we'll create a function that will allow us to apply the analysis to any data frame.
 
+__We could also here count non-dictionary words, which might indicate humor / satire ... this could be a way to include a different data source, like a dictionary CSV...  OR we could get a list of high sentiment words, which could also be an indicator.__
+
 
 ```{r}
-library(stringi)
-
 countWords<-function (df) {
 # Count words
 df<-mutate(df, num_words_title = stri_count(title,regex="\\S+"))
@@ -161,7 +163,10 @@ write(paste(df$title,df$text), file_name)
 }
 
 makeCorpus("corpus_bic", bic_reviews)
-bic_corpus <- Corpus(DirSource("corpus_bic"))  
+makeCorpus("corpus_banana_slicer", banana_slicer_reviews)
+makeCorpus("corpus_cable", cable_reviews)
+makeCorpus("corpus_tv", tv_reviews)
+makeCorpus("corpus_uranium", uranium_reviews)
 
 # do cleanup here -- stemming, removal of punctuation, etc.
 # First we can try a standard bag-of-words, where we remove punctuation, set everything to 
@@ -169,14 +174,33 @@ bic_corpus <- Corpus(DirSource("corpus_bic"))
 # we will have to do more conservative preprocessing to conserve non-word clues like
 # nonstandard punctuation or use of capital letters.
 
-bic_corpus <- tm_map(bic_corpus, removePunctuation)   
-bic_corpus <- tm_map(bic_corpus, removeNumbers)   
-bic_corpus <- tm_map(bic_corpus, content_transformer(tolower))   
-bic_corpus <- tm_map(bic_corpus, removeWords, stopwords("english"))   
-bic_corpus <- tm_map(bic_corpus, removeWords, c("bic", "cristal"))   
-bic_corpus <- tm_map(bic_corpus, stemDocument)   
+# We create a function to handle this preprocessing.  
+# The function takes as input a directory name where the corpus is found an an optional
+# string for providing additional stopwords (for example, removing words that are in
+# the name of the produc itself).
 
+preprocessCorpus <- function(dir_name, special_stopwords="") {
+  corpus<-Corpus(DirSource(dir_name))  
+  corpus <- tm_map(corpus, removePunctuation)   
+  corpus <- tm_map(corpus, removeNumbers)   
+  corpus <- tm_map(corpus, content_transformer(tolower))   
+  corpus <- tm_map(corpus, removeWords, stopwords("english")) 
+  stopwords_vector<-strsplit(special_stopwords, " ")[[1]]
+  corpus <- tm_map(corpus, removeWords, stopwords_vector) # remove special stopwords both before and 
+  corpus <- tm_map(corpus, stemDocument) 
+  corpus <- tm_map(corpus, removeWords, stopwords_vector) # after stemming.
+  return(corpus)
+}
 
-dtm <- DocumentTermMatrix(bic_corpus)   
+banana_slicer_corpus<-preprocessCorpus("corpus_banana_slicer", "hutzler banana slicer")
+bic_corpus<-preprocessCorpus("corpus_bic", "bic cristal for her")
+cable_corpus<-preprocessCorpus("corpus_cable", "denon akdl dedicated link cable discontinued by manufacturer")
+tv_corpus<-preprocessCorpus("corpus_tv", "samsung uns framed inch k ultra hd d smart led tv")
+uranium_corpus<-preprocessCorpus("corpus_uranium", "uranium ore")
+
+#not sure the following actually works.
+entire_corpus<-c(banana_slicer_corpus, bic_corpus,cable_corpus, tv_corpus, uranium_corpus)
+
+dtm <- DocumentTermMatrix(entire_corpus)   
 inspect(dtm)
 ```
