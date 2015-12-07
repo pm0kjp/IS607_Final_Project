@@ -6,11 +6,49 @@ output:
   html_document: 
     toc: true
 ---
-#A Few Caveats
 
-After triggering the Amazon "robot check" several times, we have placed Sys.sleep() commands in a number of places to keep this from happening.  This means that the script takes a surprisingly long time to run.  This is a known issue and a condition of data gathering.
+# Preliminary Project Overview
 
-#Introduction to the Data
+## Project Title:
+
+Satire and Data Science : An Exploration into one of the Current Final Frontiers
+
+
+## Project Participants: 
+
+Joy Payton and Karen Weigandt
+
+## Motivation and Inspiration:
+
+This project is inspired by the Hutzler 571 Banana Slicer, and other products that really do exist, as hard as it is to believe (like Bic Cristal For Her pens and theft deterrent moldy sandwich bags) .  Joy Payton is the originator of the idea for the analysis, and Karen Weigandt is a collector of kitchen gadgets of the incredibly useless variety.
+
+This project is actually not only fun and entertaining, it is based on real social need.  Satire is used as a tool to inspire change through humor and wit.  It allows us to look at situations with a critical eye, and hopefully grow with the introspection that naturally follows.  For many in the Asperger's and autism community, this understanding does not come naturally, though the capability and intelligence lies within.  In learning how to break it down into something that can be analyzed by a computer, we need to dissect the elements down into quantifiable differences, which can become teachable moments.  This is a process that can be useful in a variety of situations, as our society and interactions become more complex as time goes on.
+
+## Project Goals:
+
+In this project, we plan to examine satire in Amazon reviews and attempt to teach a computer to recognize what many humans cannot.  This way, we may be able to come up with some hermeneutic "rules of thumb" to help people figure out when a written text is meant to make fun of someone or something.  The craft of satire / poking fun at a situation, product, or person is intrinsically satisfying to satirists, sometimes especially if those being made fun of are unable to figure it out on their own.
+
+The desired outcome is that we gain knowledge of data science concepts, both within and beyond those encountered in the IS607 curriculum. We hope to execute a data science workflow that includes obtaining data through webscraping and/or using tools like APIs and existing public databases, scrubbing, exploring and modeling the data using a variety of packages available in R, and finally interpreting the data using statistical and visualization tools to present our findings and conclusions.
+
+## Data Science Workflow
+
+For our workflow, we have chosen to use the OSEMN model:  We will 
+
+- Obtain
+- Scrub
+- Explore
+- Model, and
+_ iNterpret 
+
+Amazon product reviews with an eye toward developing a satire detection model.
+
+## A Few Caveats
+
+After triggering the Amazon "robot check" several times (and being confused as to why data extraction was failing!), we have placed Sys.sleep() commands in a number of places to keep this from happening.  This means that the script takes a surprisingly long time to run.  This is a known issue and a condition of data gathering.
+
+# Obtaining and Scrubbing Data
+
+## Introduction to the Data
 
 The URL for the first page of the Hutzler Banana Slicer can be found here: <http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=1>.  Additional pages can be found by changing the last GET parameter to pageNumber=2, 3, etc.
 
@@ -25,7 +63,7 @@ div with class "reviews" holds all reviews
     span with class "review-date" has text containing the date of the review
     span with class "review-text" contains the review text
 ```    
-#Tool Preparation
+## Tool Preparation
 
 First, we need to install and load rvest, dplyr, and stringi.  We'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
 ```{r}
@@ -34,7 +72,7 @@ library(stringi)
 library(dplyr)
 library(stringr)
 ```
-#Getting the Amazon Reviews
+## Getting the Amazon Reviews
 
 In order to create a data frame with review text and related metadata, we will create a function that will accomplish several tasks:  
 - It will download the first n pages of reviews (default is n=20) and store the html in the file system of the local computer.
@@ -108,12 +146,16 @@ tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultr
 ```
 __We need to add non-satire reviews here... __
 
+# Exploring Data
 
-# Basic stats
+## Basic stats
 
 Here we can do basic stats that don't require text mining: like number of words per review, number of words per title, number of words in all caps, etc.  Again, we'll create a function that will allow us to apply the analysis to any data frame.
 
 __We could also here count non-dictionary words, which might indicate humor / satire ... this could be a way to include a different data source, like a dictionary CSV...  OR we could get a list of high sentiment words, which could also be an indicator.__
+
+Here's a link for profanity:  http://www.cs.cmu.edu/~biglou/resources/bad-words.txt
+Also I've added a list of positive and negative sentiment words to the repo.
 
 __We could add those dictionaries to a free trial of Google SQL...  https://console.cloud.google.com/freetrial?pli=1 ___
 
@@ -141,7 +183,7 @@ uranium_reviews<-countWords(uranium_reviews)
 tv_reviews<-countWords(tv_reviews)
 ```
 
-#Creating Corpora
+## Creating Corpora
  
 For preprocessing purposes, I will create one corpus for each product.  This will allow me to treat the name of the product as if it were a stopword, ignoring words contained in the product name in the construction of the term document matrix.
 (Is this how we want to proceed?  Unsure.)
@@ -205,3 +247,8 @@ entire_corpus<-c(banana_slicer_corpus, bic_corpus,cable_corpus, tv_corpus, urani
 dtm <- DocumentTermMatrix(entire_corpus)   
 inspect(dtm)
 ```
+
+# Modeling Data
+
+# Interpreting Data
+
