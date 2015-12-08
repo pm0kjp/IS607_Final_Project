@@ -46,6 +46,8 @@ Amazon product reviews with an eye toward developing a satire detection model.
 
 After triggering the Amazon "robot check" several times (and being confused as to why data extraction was failing!), we have placed Sys.sleep() commands in a number of places to keep this from happening.  This means that the script takes a surprisingly long time to run.  This is a known issue and a condition of data gathering.
 
+Another challenge was the offensive word list used, which was comprehensive to the point of being overly sensitive. 
+
 # Obtaining and Scrubbing Data
 
 ## Introduction to the Data
@@ -121,7 +123,7 @@ date<-reviews %>% html_nodes(".review-date") %>% html_text()
 text<-reviews %>% html_nodes(".review-text") %>% html_text()
 
 # Now we column bind those vectors:
-amazon_reviews<-data.frame(cbind(date, title, author, text, stars, helpful_votes))
+amazon_reviews<-data.frame(cbind(date, title, author, text, stars, helpful_votes), stringsAsFactors = FALSE)
 head(amazon_reviews)
 
 # I've still got to do some cleanup:  date, stars, and helpful_votes need to have extraneous text removed.
