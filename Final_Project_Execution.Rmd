@@ -137,6 +137,8 @@ Now we can use that function to get as many pages of reviews as we want from as 
 
 Please note that running this script multiple times will result in an error, because of a robot check!
 
+Satire reviews:
+
 ```{r}
 banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=")
 bic_reviews<-getReviews("http://www.amazon.com/BIC-Cristal-1-0mm-Black-MSLP16-Blk/product-reviews/B004F9QBE6/?sortBy=bySubmissionDateDescending&pageNumber=")
@@ -144,7 +146,17 @@ cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontin
 uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/product-reviews/B000796XXM/?sortBy=bySubmissionDateDescending&pageNumber=")
 tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=")
 ```
-__We need to add non-satire reviews here... __
+
+
+Serious reviews: 
+
+```{r}
+apple_slicer_reviews<-getReviews("http://www.amazon.com/OXO-Grips-Apple-Corer-Divider/product-reviews/B00004OCKT/?sortBy=byRankDescending&pageNumber=")
+pen_reviews<-getReviews("http://www.amazon.com/BIC-Velocity-1-6mm-Black-VLGB11-Blk/product-reviews/B004F9QBDC/?sortBy=byRankDescending&pageNumber=")
+hdmi_cable_reviews<-getReviews("http://www.amazon.com/Mediabridge-ULTRA-HDMI-Cable-25-Feet/product-reviews/B0031TRZX2/?sortBy=byRankDescending&pageNumber=")
+gemstone_reviews<-getReviews("http://www.amazon.com/Madagascar-gemstones-labradorite-septarian-chrysocolla/product-reviews/B003KQZY2K/?sortBy=byRankDescending&pageNumber=")
+normal_tv_review<-getReviews("http://www.amazon.com/Samsung-UN48J5200-48-Inch-1080p-Smart/product-reviews/B00WR28U10/?sortBy=byRankDescending&pageNumber=")
+```
 
 # Exploring Data
 
@@ -154,9 +166,16 @@ Here we can do basic stats that don't require text mining: like number of words 
 
 __We could also here count non-dictionary words, which might indicate humor / satire ... this could be a way to include a different data source, like a dictionary CSV...  OR we could get a list of high sentiment words, which could also be an indicator.__
 
-Here's a link for profanity:  http://www.cs.cmu.edu/~biglou/resources/bad-words.txt
+Here's a link for offensive terms:  http://www.cs.cmu.edu/~biglou/resources/bad-words.txt
 Also I've added a list of positive and negative sentiment words to the repo.
 
+```{r}
+offensive<-unlist(read.table("http://www.cs.cmu.edu/~biglou/resources/bad-words.txt"))
+# Add spaces on either side to tokenize the offensive.  
+# The reason is that we don't want to hit on "ho", let's say, if the word 
+# is "holiday".  Only if "ho" is used as a word in and of itself.
+offensive<-paste(" ",offensive," ",sep="")
+```
 __We could add those dictionaries to a free trial of Google SQL...  https://console.cloud.google.com/freetrial?pli=1 ___
 
 ```{r}
@@ -173,6 +192,10 @@ df<-mutate(df, num_excl_review = stri_count(text,regex="!"))
 # Count number of question marks
 df<-mutate(df, num_quest_title = stri_count(title,regex="\\?"))
 df<-mutate(df, num_quest_review = stri_count(text,regex="\\?"))
+# Count offensive
+df<-mutate(df, num_offensive_title = stri_count(title, regex=paste(offensive, collapse = "|")))
+df<-mutate(df, num_offensive_text = stri_count(text, regex=paste(offensive, collapse = "|")))
+
 return(df)
 }
 
@@ -181,7 +204,24 @@ bic_reviews<-countWords(bic_reviews)
 cable_reviews<-countWords(cable_reviews)
 uranium_reviews<-countWords(uranium_reviews)
 tv_reviews<-countWords(tv_reviews)
+
+apple_slicer_reviews<-countWords(apple_slicer_reviews)
+pen_reviews<-countWords(gel_pen_reviews)
+hdmi_cable_reviews<-countWords(hdmi_cable_reviews)
+gemstone_reviews<-countWords(gemstone_reviews)
+normal_tv_reviews<-countWords(normal_tv_reviews)
 ```
+If we want to see if the offensive check is legit (maybe we are hitting on words that aren't really offensive in our opinion), we can do something like the following:
+
+```{r}
+bad_apples<-apple_slicer_reviews %>% filter (num_offensive_text > 0)
+str_match_all(bad_apples$text, paste(offensive, collapse = "|"))
+```
+
+In this case, we're hitting on words that aren't really offensive, or only would be contextually.
+If we think these terms will be found equally frequently in the satire and serious reviews, we can leave them be for now.  Regardless, we should consider paring down the list and removing some innocuous words like " black ", " knife ", " hole ", etc.  Other terms may still warrant inclusion, like " stupid ".
+
+
 
 ## Creating Corpora
  
