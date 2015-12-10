@@ -262,6 +262,21 @@ pen_reviews<-countWords(pen_reviews)
 hdmi_cable_reviews<-countWords(hdmi_cable_reviews)
 gemstone_reviews<-countWords(gemstone_reviews)
 normal_tv_reviews<-countWords(normal_tv_reviews) 
+
+# It probably makes sense for us to come up with a huge data frame that includes all the rows of the above
+# data frames with one more column stating the serious / satire category.
+
+satire_reviews<-rbind(banana_slicer_reviews,bic_reviews,cable_reviews,uranium_reviews,tv_reviews)
+satire_reviews$category<-"Satire"
+serious_reviews<-rbind(apple_slicer_reviews,pen_reviews,hdmi_cable_reviews,gemstone_reviews,normal_tv_reviews)
+serious_reviews$category<-"Serious"
+all_reviews<-rbind(satire_reviews,serious_reviews)
+
+# Now we can do data vis like
+boxplot(all_reviews$num_excl_review~all_reviews$category)
+boxplot(all_reviews$num_offensive_text~all_reviews$category)  # Something here!
+hist(all_reviews$num_words_review[which(all_reviews$category=="Satire")])
+hist(all_reviews$num_words_review[which(all_reviews$category=="Serious")])
 ```
 If we want to see if the offensive check is legit (maybe we are hitting on words that aren't really offensive in our opinion), we can do something like the following:
 
@@ -487,6 +502,10 @@ table(prediction, df_for_model[df_test,"review_category"] )
 
 
 # Interpreting Data
+
+It's hella hard to classify satire using bag-of-words -- describe findings from last section here.
+
+Do some visualization of stuff like # of exclamation pts etc.
 
 
 Here we draw a word cloud to visualize the words frquently found in our product review corpus.
