@@ -74,7 +74,7 @@ library(stringi)
 library(dplyr)
 library(stringr)
 library(quanteda)
-
+library(RCurl)
 ```
 ## Getting the Amazon Reviews
 
@@ -83,7 +83,6 @@ First, we'll set up the local directories where the satire and serious reviews w
 ```{r}
 dir.create("amazon_satire", showWarnings = FALSE)
 dir.create("amazon_serious", showWarnings = FALSE)
-
 ```
 
 _Note: the code block below demonstrates how to obtain fresh reviews from Amazon.  Instead of issuing repeated calls to Amazon's servers, we have opted to save a copy of the html as it appeared on December 9, 2015 and place it in our GitHub repository.  This html will be removed at the end of this semester in deference to the intellectual property rights of Amazon over this content._
@@ -115,7 +114,7 @@ _Note: the code block below shows how we can instead populate our local file sys
 
 ```{r eval=TRUE}
 getAmazonHTML<- function(base_url, num_pages=20, corpus_identifier){
-  
+
 # We obtain the html from GitHub, which represents a copy of what was on Amazon
 # on Dec. 9, 2015.
 
@@ -128,7 +127,7 @@ dir.create(local_directory_name, showWarnings = FALSE) # don't bother telling us
 for (i in 1:num_pages) {
   current_url<-paste("http://raw.githubusercontent.com/pm0kjp/IS607_Final_Project/master/", remote_directory_name, "/Page-", i, ".html", sep="")
   filename<-paste(local_directory_name, "/Page-", i, ".html", sep="")
-  download.file(current_url, filename)
+  download.file(current_url, filename, mode="wb")
 }
 return(local_directory_name)
 }
@@ -205,8 +204,8 @@ apple_slicer_reviews<-getReviews("http://www.amazon.com/OXO-Grips-Apple-Corer-Di
 pen_reviews<-getReviews("http://www.amazon.com/BIC-Velocity-1-6mm-Black-VLGB11-Blk/product-reviews/B004F9QBDC/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 hdmi_cable_reviews<-getReviews("http://www.amazon.com/Mediabridge-ULTRA-HDMI-Cable-25-Feet/product-reviews/B0031TRZX2/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 gemstone_reviews<-getReviews("http://www.amazon.com/Madagascar-gemstones-labradorite-septarian-chrysocolla/product-reviews/B003KQZY2K/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
-# normal_tv_review<-getReviews("http://www.amazon.com/Samsung-UN40J5200-40-Inch-1080p-Smart/product-reviews/B00WR292JE/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
-# above has bad html due to Amazon robot check .. will rerun and add back to repo.
+normal_tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN40J5200-40-Inch-1080p-Smart/product-reviews/B00WR292JE/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+
 ```
 
 # Exploring Data
@@ -257,10 +256,10 @@ uranium_reviews<-countWords(uranium_reviews)
 tv_reviews<-countWords(tv_reviews)
 
 apple_slicer_reviews<-countWords(apple_slicer_reviews)
-pen_reviews<-countWords(gel_pen_reviews)
+pen_reviews<-countWords(pen_reviews)
 hdmi_cable_reviews<-countWords(hdmi_cable_reviews)
 gemstone_reviews<-countWords(gemstone_reviews)
-# normal_tv_reviews<-countWords(normal_tv_reviews)  this has partial HTML thanks to Amazon robot check -- will add back.
+normal_tv_reviews<-countWords(normal_tv_reviews) 
 ```
 If we want to see if the offensive check is legit (maybe we are hitting on words that aren't really offensive in our opinion), we can do something like the following:
 
@@ -282,6 +281,7 @@ For preprocessing purposes, I will create one corpus for each product.  This wil
 ```{r}
 library(tm)
 library(SnowballC)
+library(quanteda)
 ```
 
 ```{r}
@@ -326,10 +326,15 @@ preprocessCorpus <- function(dir_name, special_stopwords="") {
   return(corpus)
 }
 
-satire_corpus<-preprocessCorpus("amazon_satire/corpus", "hutzler banana slice bic cristal for her denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore")
+#satire_corpus<-preprocessCorpus("amazon_satire/corpus", "hutzler banana slice bic cristal for her denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore")
 
-dtm <- DocumentTermMatrix(satire_corpus)   
-inspect(dtm)
+
+satire_corpus <- corpus(myfiles) # create the corpus
+
+mydfm <- dfm(satire_corpus, ignoredFeatures = stopwords("english"), stem=TRUE) # dfm automatically applies toLower and removes punctuation
+
+#dtm <- DocumentTermMatrix(satire_corpus)   
+#inspect(dtm)
 ```
 
 # Modeling Data
