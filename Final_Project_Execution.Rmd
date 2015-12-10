@@ -76,35 +76,80 @@ library(stringr)
 ```
 ## Getting the Amazon Reviews
 
+First, we'll set up the local directories where the satire and serious reviews will live:
+
+```{r}
+dir.create("amazon_satire", showWarnings = FALSE)
+dir.create("amazon_serious", showWarnings = FALSE)
+
+```
+
+_Note: the code block below demonstrates how to obtain fresh reviews from Amazon.  Instead of issuing repeated calls to Amazon's servers, we have opted to save a copy of the html as it appeared on December 9, 2015 and place it in our GitHub repository.  This html will be removed at the end of this semester in deference to the intellectual property rights of Amazon over this content._
+
+
+```{r eval=FALSE}
+getAmazonHTML<- function(base_url, num_pages=20, corpus_identifier){
+  
+# We obtain the html once only.  This way, if we have to test various ways to 
+# manipulate it, we can do so on our local copies and not keep hitting Amazon's servers
+
+# Create a directory for this product's reviews, using the product name as the directory name.
+  
+directory_name<-paste(corpus_identifier, "/", str_match(base_url, "amazon.com/(.+)/product-reviews")[2], sep="")
+dir.create(directory_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
+
+for (i in 1:num_pages) {
+  current_url<-paste(base_url,i,sep="")
+  download.file(current_url, filename)
+  Sys.sleep(4)  # Be a good citizen and don't hammer the server
+}
+return(directory_name)
+
+}
+```
+
+_Note: the code block below shows how we can instead populate our local file system with copies taken from GitHub, sparing Amazon the extra network traffic._
+
+```{r eval=TRUE}
+getAmazonHTML<- function(base_url, num_pages=20, corpus_identifier){
+  
+# We obtain the html from GitHub, which represents a copy of what was on Amazon
+# on Dec. 9, 2015.
+
+# Directory names in the repo reflect the product name
+
+remote_directory_name<-str_match(base_url, "amazon.com/(.+)/product-reviews")[2]
+local_directory_name<-paste(corpus_identifier, "/", str_match(base_url, "amazon.com/(.+)/product-reviews")[2], sep="")
+dir.create(local_directory_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
+
+for (i in 1:num_pages) {
+  current_url<-paste("http://raw.githubusercontent.com/pm0kjp/IS607_Final_Project/master/", remote_directory_name, "/Page-", i, ".html", sep="")
+  filename<-paste(local_directory_name, "/Page-", i, ".html", sep="")
+  download.file(current_url, filename)
+}
+return(local_directory_name)
+}
+```
+
+
 In order to create a data frame with review text and related metadata, we will create a function that will accomplish several tasks:  
 - It will download the first n pages of reviews (default is n=20) and store the html in the file system of the local computer.
 - It will then use rvest to extract only the review from the html files saved to the file system
 - Finally, it will clean the data and return a data frame.
 
+
 ```{r}
-# BaseURL should be of the form 
-getReviews <-function(base_url, num_pages=20) {
+getReviews <-function(base_url, num_pages=20, corpus_identifier) {
 
-# first, obtain the html once only.  This way, if we have to test various ways to 
-# manipulate it, we can do so on our local copies and not keep hitting Amazon's servers
+# Get the HTML using the function we defined (either grabbing it directly from Amazon, or from our project GitHub.)
 
-# Create a directory for this product's reviews, using the product name as the directory name.
-directory_name<-str_match(base_url, "amazon.com/(.+)/product-reviews")[2]
-dir.create(directory_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
-
-for (i in 1:num_pages) {
-  current_url<-paste(base_url,i,sep="")
-  filename<-paste(directory_name, "/Page-", i, ".html", sep="")
-  download.file(current_url, filename)
-  Sys.sleep(4)  # Be a good citizen and don't hammer the server
-}
-
-# Now we'll load the first html files and choose just the "reviews" section.  
+directory_name<-getAmazonHTML(base_url,num_pages, corpus_identifier)
+  
+# We'll load the html files and choose just the "reviews" section.  
 # Note that classes are prefixed with a period, so we use ".reviews".  
 # Within the "reviews" section, we have any number of nodes that we need to parse.   
-
-#We first create a list called "reviews" that's empty, then fill it with reviews from each html file.
-
+# We first create a list called "reviews" that's empty, then fill it with reviews from each html file.
+  
 reviews<-list()
 for (i in 1:length(list.files(directory_name))) {
   amazon_html <- read_html(paste(directory_name, "/Page-", i, ".html", sep=""))
@@ -142,22 +187,22 @@ Please note that running this script multiple times will result in an error, bec
 Satire reviews:
 
 ```{r}
-banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=")
-bic_reviews<-getReviews("http://www.amazon.com/BIC-Cristal-1-0mm-Black-MSLP16-Blk/product-reviews/B004F9QBE6/?sortBy=bySubmissionDateDescending&pageNumber=")
-cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontinued-Manufacturer/product-reviews/B000I1X6PM/?sortBy=bySubmissionDateDescending&pageNumber=")
-uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/product-reviews/B000796XXM/?sortBy=bySubmissionDateDescending&pageNumber=")
-tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=")
+banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_satire")
+bic_reviews<-getReviews("http://www.amazon.com/BIC-Cristal-1-0mm-Black-MSLP16-Blk/product-reviews/B004F9QBE6/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
+cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontinued-Manufacturer/product-reviews/B000I1X6PM/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
+uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/product-reviews/B000796XXM/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
+tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
 ```
 
 
 Serious reviews: 
 
 ```{r}
-apple_slicer_reviews<-getReviews("http://www.amazon.com/OXO-Grips-Apple-Corer-Divider/product-reviews/B00004OCKT/?sortBy=byRankDescending&pageNumber=")
-pen_reviews<-getReviews("http://www.amazon.com/BIC-Velocity-1-6mm-Black-VLGB11-Blk/product-reviews/B004F9QBDC/?sortBy=byRankDescending&pageNumber=")
-hdmi_cable_reviews<-getReviews("http://www.amazon.com/Mediabridge-ULTRA-HDMI-Cable-25-Feet/product-reviews/B0031TRZX2/?sortBy=byRankDescending&pageNumber=")
-gemstone_reviews<-getReviews("http://www.amazon.com/Madagascar-gemstones-labradorite-septarian-chrysocolla/product-reviews/B003KQZY2K/?sortBy=byRankDescending&pageNumber=")
-normal_tv_review<-getReviews("http://www.amazon.com/Samsung-UN48J5200-48-Inch-1080p-Smart/product-reviews/B00WR28U10/?sortBy=byRankDescending&pageNumber=")
+apple_slicer_reviews<-getReviews("http://www.amazon.com/OXO-Grips-Apple-Corer-Divider/product-reviews/B00004OCKT/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+pen_reviews<-getReviews("http://www.amazon.com/BIC-Velocity-1-6mm-Black-VLGB11-Blk/product-reviews/B004F9QBDC/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+hdmi_cable_reviews<-getReviews("http://www.amazon.com/Mediabridge-ULTRA-HDMI-Cable-25-Feet/product-reviews/B0031TRZX2/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+gemstone_reviews<-getReviews("http://www.amazon.com/Madagascar-gemstones-labradorite-septarian-chrysocolla/product-reviews/B003KQZY2K/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+normal_tv_review<-getReviews("http://www.amazon.com/Samsung-UN48J5200-48-Inch-1080p-Smart/product-reviews/B00WR28U10/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 ```
 
 # Exploring Data
@@ -277,7 +322,7 @@ preprocessCorpus <- function(dir_name, special_stopwords="") {
   return(corpus)
 }
 
-banana_slicer_corpus<-preprocessCorpus("corpus_banana_slicer", "hutzler banana slicer")
+banana_slicer_corpus<-preprocessCorpus("corpus_banana_slicer", "hutzler banana slice")
 bic_corpus<-preprocessCorpus("corpus_bic", "bic cristal for her")
 cable_corpus<-preprocessCorpus("corpus_cable", "denon akdl dedicated link cable discontinued by manufacturer")
 tv_corpus<-preprocessCorpus("corpus_tv", "samsung uns framed inch k ultra hd d smart led tv")
