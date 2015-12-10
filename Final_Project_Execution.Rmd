@@ -292,5 +292,57 @@ inspect(dtm)
 
 # Modeling Data
 
+For the modeling step, I did some research, and I think the way to go is to use naive Bayes analysis.
+
+It is supposed to be simple code and work well for our type of application.
+
+```{r}
+install.packages("klaR", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/")
+library(klaR)
+
+# First we transform our corpus into a data frame
+df <- as.data.frame(dtm)
+
+
+# set up a training sample (70% of the data frame)
+df_train <- sample(1:nrow(df), ceiling(nrow(df)* 0.7), replace=FALSE)
+
+# apply NB classifier
+nb.res <- NaiveBayes(satire ~ ., data=df[df_train,])
+
+# show the results
+opar <- par(mfrow=c(2,4))
+plot(nb.res)
+par(opar)
+
+# predict on holdout units
+nb.pred <- predict(nb.res, df[-df_train,])
+
+# raw accuracy
+confusion.mat <- table(nb.pred$class, df[-df_train,"satire"])
+sum(diag(confusion.mat))/sum(confusion.mat)
+
+# Or we could use code like this: (lets see which way works)
+
+
+sub = sample(nrow(df), floor(nrow(df) * 0.8))
+train = df[sub,]
+test = df[-sub,]
+
+xTrain = train[,-classificationcolnumber]
+yTrain = train$satire
+
+xTest = test[,-classificationcolnumber]
+yTest = test$satire
+
+model = train(xTrain,yTrain,'nb',trControl=trainControl(method='cv',number=10))
+
+prop.table(table(predict(model$finalModel,xTest)$class,yTest))
+
+
+```
+
+
+
 # Interpreting Data
 
