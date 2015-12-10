@@ -341,14 +341,14 @@ install.packages("klaR", dependencies = TRUE, repos = "http://cran.mirrors.hoobl
 library(klaR)
 
 # First we transform our corpus into a data frame
-df <- as.data.frame(dtm)
+df_for_model <- as.data.frame(dtm)
 
 
 # set up a training sample (70% of the data frame)
-df_train <- sample(1:nrow(df), ceiling(nrow(df)* 0.7), replace=FALSE)
+df_train <- sample(1:nrow(df_for_model), ceiling(nrow(df_for_model)* 0.7), replace=FALSE)
 
 # apply NB classifier
-nb.res <- NaiveBayes(satire ~ ., data=df[df_train,])
+nb.res <- NaiveBayes(satire ~ ., data=df_for_model[df_train,])
 
 # show the results
 opar <- par(mfrow=c(2,4))
@@ -356,10 +356,10 @@ plot(nb.res)
 par(opar)
 
 # predict on holdout units
-nb.pred <- predict(nb.res, df[-df_train,])
+nb.pred <- predict(nb.res, df_for_model[-df_train,])
 
 # raw accuracy
-confusion.mat <- table(nb.pred$class, df[-df_train,"satire"])
+confusion.mat <- table(nb.pred$class, df_for_model[-df_train,"satire"])
 sum(diag(confusion.mat))/sum(confusion.mat)
 
 # Or we could use code like this: (lets see which way works)
@@ -386,3 +386,27 @@ prop.table(table(predict(model$finalModel,xTest)$class,yTest))
 
 # Interpreting Data
 
+
+Here we draw a word cloud to visualize the words frquently found in our product review corpus.
+```{r}
+install.packages("wordcloud", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # word-cloud generator 
+install.packages("RColorBrewer", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # color palettes
+
+library(ggplot2)
+library(wordcloud)
+library(RColorBrewer)
+
+set.seed(2112)
+wordcloud(words = df_for_model$word, freq = df_for_model$freq, min.freq = 20,
+          max.words=100, random.order=TRUE, rot.per=0.30, 
+          colors=brewer.pal(8, "Set1"))
+
+```
+
+We can also view a barplot of the most frequent terms
+```{r}
+barplot(df_for_model[1:25,]$freq, las = 2, names.arg = df_for_model[1:25,]$word,
+        col ="lightblue", main ="Most frequent words",
+        ylab = "Word frequencies")
+
+```
