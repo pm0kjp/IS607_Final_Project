@@ -100,6 +100,7 @@ dir.create(directory_name, showWarnings = FALSE) # don't bother telling us if th
 
 for (i in 1:num_pages) {
   current_url<-paste(base_url,i,sep="")
+  filename<-paste(directory_name, "/Page-", i, ".html", sep="")
   download.file(current_url, filename)
   Sys.sleep(4)  # Be a good citizen and don't hammer the server
 }
@@ -202,7 +203,8 @@ apple_slicer_reviews<-getReviews("http://www.amazon.com/OXO-Grips-Apple-Corer-Di
 pen_reviews<-getReviews("http://www.amazon.com/BIC-Velocity-1-6mm-Black-VLGB11-Blk/product-reviews/B004F9QBDC/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 hdmi_cable_reviews<-getReviews("http://www.amazon.com/Mediabridge-ULTRA-HDMI-Cable-25-Feet/product-reviews/B0031TRZX2/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 gemstone_reviews<-getReviews("http://www.amazon.com/Madagascar-gemstones-labradorite-septarian-chrysocolla/product-reviews/B003KQZY2K/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
-normal_tv_review<-getReviews("http://www.amazon.com/Samsung-UN48J5200-48-Inch-1080p-Smart/product-reviews/B00WR28U10/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+# normal_tv_review<-getReviews("http://www.amazon.com/Samsung-UN40J5200-40-Inch-1080p-Smart/product-reviews/B00WR292JE/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
+# above has bad html due to Amazon robot check .. will rerun and add back to repo.
 ```
 
 # Exploring Data
@@ -256,7 +258,7 @@ apple_slicer_reviews<-countWords(apple_slicer_reviews)
 pen_reviews<-countWords(gel_pen_reviews)
 hdmi_cable_reviews<-countWords(hdmi_cable_reviews)
 gemstone_reviews<-countWords(gemstone_reviews)
-normal_tv_reviews<-countWords(normal_tv_reviews)
+# normal_tv_reviews<-countWords(normal_tv_reviews)  this has partial HTML thanks to Amazon robot check -- will add back.
 ```
 If we want to see if the offensive check is legit (maybe we are hitting on words that aren't really offensive in our opinion), we can do something like the following:
 
@@ -292,11 +294,11 @@ file_name<-paste(corpus_name,deparse(substitute(df)), sep="/")
 write(paste(df$title,df$text), file_name)
 }
 
-makeCorpus("corpus_bic", bic_reviews)
-makeCorpus("corpus_banana_slicer", banana_slicer_reviews)
-makeCorpus("corpus_cable", cable_reviews)
-makeCorpus("corpus_tv", tv_reviews)
-makeCorpus("corpus_uranium", uranium_reviews)
+makeCorpus("amazon_satire/corpus", bic_reviews)
+makeCorpus("amazon_satire/corpus", banana_slicer_reviews)
+makeCorpus("amazon_satire/corpus", cable_reviews)
+makeCorpus("amazon_satire/corpus", tv_reviews)
+makeCorpus("amazon_satire/corpus", uranium_reviews)
 
 # do cleanup here -- stemming, removal of punctuation, etc.
 # First we can try a standard bag-of-words, where we remove punctuation, set everything to 
@@ -322,16 +324,9 @@ preprocessCorpus <- function(dir_name, special_stopwords="") {
   return(corpus)
 }
 
-banana_slicer_corpus<-preprocessCorpus("corpus_banana_slicer", "hutzler banana slice")
-bic_corpus<-preprocessCorpus("corpus_bic", "bic cristal for her")
-cable_corpus<-preprocessCorpus("corpus_cable", "denon akdl dedicated link cable discontinued by manufacturer")
-tv_corpus<-preprocessCorpus("corpus_tv", "samsung uns framed inch k ultra hd d smart led tv")
-uranium_corpus<-preprocessCorpus("corpus_uranium", "uranium ore")
+satire_corpus<-preprocessCorpus("amazon_satire/corpus", "hutzler banana slice bic cristal for her denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore")
 
-#not sure the following actually works.
-entire_corpus<-c(banana_slicer_corpus, bic_corpus,cable_corpus, tv_corpus, uranium_corpus)
-
-dtm <- DocumentTermMatrix(entire_corpus)   
+dtm <- DocumentTermMatrix(satire_corpus)   
 inspect(dtm)
 ```
 
