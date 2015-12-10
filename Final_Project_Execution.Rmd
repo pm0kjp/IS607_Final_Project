@@ -127,7 +127,7 @@ local_directory_name<-paste(corpus_identifier, "/", str_match(base_url, "amazon.
 dir.create(local_directory_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
 
 for (i in 1:num_pages) {
-  current_url<-paste("http://raw.githubusercontent.com/pm0kjp/IS607_Final_Project/master/", remote_directory_name, "/Page-", i, ".html", sep="")
+  current_url<-paste("https://raw.githubusercontent.com/pm0kjp/IS607_Final_Project/master/", remote_directory_name, "/Page-", i, ".html", sep="")
   filename<-paste(local_directory_name, "/Page-", i, ".html", sep="")
   download.file(current_url, filename, method="curl")
 }
