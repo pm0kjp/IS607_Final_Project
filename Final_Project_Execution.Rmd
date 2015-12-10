@@ -73,6 +73,8 @@ library(rvest)
 library(stringi)
 library(dplyr)
 library(stringr)
+library(quanteda)
+
 ```
 ## Getting the Amazon Reviews
 
