@@ -70,11 +70,13 @@ div with class "reviews" holds all reviews
 First, we need to install and load rvest, dplyr, and stringi.  We'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
 ```{r}
 library(rvest)
+library(plyr)
 library(stringi)
 library(dplyr)
 library(stringr)
 library(quanteda)
 library(RCurl)
+library(class)
 ```
 ## Getting the Amazon Reviews
 
@@ -273,34 +275,39 @@ If we think these terms will be found equally frequently in the satire and serio
 
 
 
-## Creating Corpora
+## Creating Corpora and TDM
  
-For preprocessing purposes, I will create one corpus for each product.  This will allow me to treat the name of the product as if it were a stopword, ignoring words contained in the product name in the construction of the term document matrix.
-(Is this how we want to proceed?  Unsure.)
+For preprocessing purposes, I will create one corpus for each kind of review (one "satire" corpus with its TDM, and one "serious" corpus with its TDM).  In each corpus, I'll treat the product names as stopwords (so that, for example, the satire corpus does not treat the term "banana", which appears in a product name, as a bellweather word).
 
 ```{r}
 library(tm)
 library(SnowballC)
-library(quanteda)
 ```
 
 ```{r}
 
-# I create a function that will take any of my data frames and create 
-# a corpus out of it.  I add both review titles and review text to 
-# the text.
+# I create a function that will take any of my data frames and create text files, which will contribute
+# to each corpus.
 
-makeCorpus <-function(corpus_name, df) {
+makeTextFiles <-function(corpus_name, df) {
 dir.create(corpus_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
-file_name<-paste(corpus_name,deparse(substitute(df)), sep="/")
-write(paste(df$title,df$text), file_name)
+for (i in 1:nrow(df)){
+file_name<-paste(corpus_name, "/", deparse(substitute(df)), i, sep="")
+write(paste(df$title[i],df$text[i]), file_name)
+}
 }
 
-makeCorpus("amazon_satire/corpus", bic_reviews)
-makeCorpus("amazon_satire/corpus", banana_slicer_reviews)
-makeCorpus("amazon_satire/corpus", cable_reviews)
-makeCorpus("amazon_satire/corpus", tv_reviews)
-makeCorpus("amazon_satire/corpus", uranium_reviews)
+makeTextFiles("amazon_satire/corpus", bic_reviews)
+makeTextFiles("amazon_satire/corpus", banana_slicer_reviews)
+makeTextFiles("amazon_satire/corpus", cable_reviews)
+makeTextFiles("amazon_satire/corpus", tv_reviews)
+makeTextFiles("amazon_satire/corpus", uranium_reviews)
+
+makeTextFiles("amazon_serious/corpus", pen_reviews)
+makeTextFiles("amazon_serious/corpus", apple_slicer_reviews)
+makeTextFiles("amazon_serious/corpus", hdmi_cable_reviews)
+makeTextFiles("amazon_serious/corpus", normal_tv_reviews)
+makeTextFiles("amazon_serious/corpus", gemstone_reviews)
 
 # do cleanup here -- stemming, removal of punctuation, etc.
 # First we can try a standard bag-of-words, where we remove punctuation, set everything to 
@@ -313,7 +320,7 @@ makeCorpus("amazon_satire/corpus", uranium_reviews)
 # string for providing additional stopwords (for example, removing words that are in
 # the name of the produc itself).
 
-preprocessCorpus <- function(dir_name, special_stopwords="") {
+createCleanCorpus <- function(dir_name, special_stopwords="") {
   corpus<-Corpus(DirSource(dir_name))  
   corpus <- tm_map(corpus, removePunctuation)   
   corpus <- tm_map(corpus, removeNumbers)   
@@ -326,15 +333,44 @@ preprocessCorpus <- function(dir_name, special_stopwords="") {
   return(corpus)
 }
 
-#satire_corpus<-preprocessCorpus("amazon_satire/corpus", "hutzler banana slice bic cristal for her denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore")
+satire_corpus<-createCleanCorpus("amazon_satire/corpus", "hutzler banana slice slicer bic cristal pen for her denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore")
+
+satire_tdm <- TermDocumentMatrix(satire_corpus)   
 
 
-satire_corpus <- corpus(myfiles) # create the corpus
+serious_corpus<-createCleanCorpus("amazon_serious/corpus", "oxo apple grip core corer divide divider slice slicer bic pen velocity mediabridge hdmi black ultra cable feet madagascar gemstone gemstones stone stones labradorite septarian chrysocolla samsung inch p unj smart tv")
 
-mydfm <- dfm(satire_corpus, ignoredFeatures = stopwords("english"), stem=TRUE) # dfm automatically applies toLower and removes punctuation
+serious_tdm <- TermDocumentMatrix(serious_corpus)   
 
-#dtm <- DocumentTermMatrix(satire_corpus)   
-#inspect(dtm)
+```
+
+Now that we have our TDMs, we want to attach the category ("satire" or "serious") to the Term Document Matrix.  We'll transpose the matrix as well.
+
+```{r}
+bindCategoryTDM<- function(tdm, category){
+  transposed_matrix<-t(data.matrix(tdm))
+  df<-as.data.frame(transposed_matrix, stringsAsFactors = FALSE)
+  df<-cbind(df, rep(category, nrow(df)))
+  colnames(df)[ncol(df)]<-"review_category"
+  return(df)
+}
+
+satire_df<-bindCategoryTDM(satire_tdm, "satire")
+serious_df<-bindCategoryTDM(serious_tdm, "serious")
+```
+
+We'll stack the two data frames, replacing any NA with 0, and moving the category variable to the front
+
+```{r}
+df_for_model<-rbind.fill(satire_df,serious_df)
+df_for_model[is.na(df_for_model)]<-0
+df_for_model<-df_for_model %>% dplyr::select(review_category, everything())
+```
+
+Let's take a look at what we have.  We'll take a look at the first and last 5 columns.
+
+```{r}
+head(df_for_model[, c(1:5, 9963:9967)])
 ```
 
 # Modeling Data
@@ -343,48 +379,107 @@ For the modeling step, I did some research, and I think the way to go is to use 
 
 It is supposed to be simple code and work well for our type of application.
 
+Note: we initially tried to use the klaR Naive Bayes, but found that where there is a variance of 0, klAr throws an error (see http://stats.stackexchange.com/questions/35694/naive-bayes-fails-with-a-perfect-predictor).  For this reason, we moved toward the use of the e1071 package.
+
+Note that we're dealing with 2000 cases, so predict() will churn for a while before completing.
+
+
 ```{r}
-install.packages("klaR", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/")
-library(klaR)
+#install.packages("klaR", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/")
+#library(klaR)
 
-# First we transform our corpus into a data frame
-df_for_model <- as.data.frame(dtm)
-
+install.packages('e1071', dependencies = TRUE)
+library(e1071)
 
 # set up a training sample (70% of the data frame)
 df_train <- sample(1:nrow(df_for_model), ceiling(nrow(df_for_model)* 0.7), replace=FALSE)
 
-# apply NB classifier
-nb.res <- NaiveBayes(satire ~ ., data=df_for_model[df_train,])
+# and a testing sample that excludes the above:
+df_test <- (1:nrow(df_for_model))[-df_train]
+
+# Construct the model, using the training sample, and apply it across the board to see its fit:
+
+model<-naiveBayes(review_category ~ ., data=df_for_model[df_train,])
+prediction<-predict(model, newdata=df_for_model[,-1])
+table(prediction, df_for_model$review_category)
+
+# Apply the model to just the test data (not used in training):
+prediction<-predict(model, newdata=df_for_model[df_test,-1])
+table(prediction, df_for_model[df_test,"review_category"] )
+
+# Not sure why everything is showing up as "serious"...
+
+# We'll try KNN.
+
+knn_model<-knn(df_for_model[df_train, -1], df_for_model[df_test, -1], df_for_model[df_train, 1])
+confusion_matrix<-table("Predictions" = knn_model, "Actual" = df_for_model[df_test,1])
+confusion_matrix
+
+accuracy<-sum(diag(confusion_matrix) / length(df_test)) * 100
+accuracy
+
+# Well, it's better than Bayes for sure, but not fantastic.  68.5% accuracy on satire vs. serious classification.
+
+# What if we tried to discern the important words and came up with a different nb model?
+
+# First, find the terms that appear in each corpus > 30X
+satire_terms<-findFreqTerms(satire_tdm, 30)
+serious_terms<-findFreqTerms(serious_tdm, 30)
+
+# Then, find the intersection (where the terms are the same in both corpora), and remove that from each term list
+# so that we are left with *distinctive* terms.
+
+satire_distinctive_terms<-setdiff(satire_terms, serious_terms)
+serious_distinctive_terms<-setdiff(serious_terms, satire_terms)
+
+distinctive_terms<-c(satire_distinctive_terms, serious_distinctive_terms)
+
+# Note that when we look at these terms, there seems to be overfitting: we are capturing words that 
+# are specific to the products being reviewed.  We should consider going back and adding additional
+# product-specific keywords.
+
+# Now let's try Naive Bayes with this limited bank of words:
+
+model<-naiveBayes(review_category ~ ., data=df_for_model[df_train, c("review_category", distinctive_terms)])
+prediction<-predict(model, newdata=df_for_model[,-1])
+table(prediction, df_for_model$review_category)
+
+# Apply the model to just the test data (not used in training):
+prediction<-predict(model, newdata=df_for_model[df_test,c(distinctive_terms)])
+table(prediction, df_for_model[df_test,"review_category"] )
+
+#Not sure what you wanted to plot here, Karen -- strength of predictors?
+
+#nb.res <- NaiveBayes(review_category ~ ., data=df_for_model[df_train,])
 
 # show the results
-opar <- par(mfrow=c(2,4))
-plot(nb.res)
-par(opar)
+#opar <- par(mfrow=c(2,4))
+#plot(nb.res)
+#par(opar)
 
 # predict on holdout units
-nb.pred <- predict(nb.res, df_for_model[-df_train,])
+#nb.pred <- predict(nb.res, df_for_model[-df_train,])
 
 # raw accuracy
-confusion.mat <- table(nb.pred$class, df_for_model[-df_train,"satire"])
-sum(diag(confusion.mat))/sum(confusion.mat)
+#confusion.mat <- table(nb.pred$class, df_for_model[-df_train,"satire"])
+#sum(diag(confusion.mat))/sum(confusion.mat)
 
 # Or we could use code like this: (lets see which way works)
 
 
-sub = sample(nrow(df), floor(nrow(df) * 0.8))
-train = df[sub,]
-test = df[-sub,]
+#sub = sample(nrow(df), floor(nrow(df) * 0.8))
+#train = df[sub,]
+#test = df[-sub,]
 
-xTrain = train[,-classificationcolnumber]
-yTrain = train$satire
+#xTrain = train[,-classificationcolnumber]
+#yTrain = train$satire
 
-xTest = test[,-classificationcolnumber]
-yTest = test$satire
+#xTest = test[,-classificationcolnumber]
+#yTest = test$satire
 
-model = train(xTrain,yTrain,'nb',trControl=trainControl(method='cv',number=10))
+#model = train(xTrain,yTrain,'nb',trControl=trainControl(method='cv',number=10))
 
-prop.table(table(predict(model$finalModel,xTest)$class,yTest))
+#prop.table(table(predict(model$finalModel,xTest)$class,yTest))
 
 
 ```
@@ -395,6 +490,10 @@ prop.table(table(predict(model$finalModel,xTest)$class,yTest))
 
 
 Here we draw a word cloud to visualize the words frquently found in our product review corpus.
+
+Note, there's no "word" column, you'll have to use tidyr to reshape the data...
+
+
 ```{r}
 install.packages("wordcloud", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # word-cloud generator 
 install.packages("RColorBrewer", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # color palettes
