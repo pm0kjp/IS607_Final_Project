@@ -129,7 +129,7 @@ dir.create(local_directory_name, showWarnings = FALSE) # don't bother telling us
 for (i in 1:num_pages) {
   current_url<-paste("http://raw.githubusercontent.com/pm0kjp/IS607_Final_Project/master/", remote_directory_name, "/Page-", i, ".html", sep="")
   filename<-paste(local_directory_name, "/Page-", i, ".html", sep="")
-  download.file(current_url, filename, mode="wb")
+  download.file(current_url, filename, method="curl")
 }
 return(local_directory_name)
 }
