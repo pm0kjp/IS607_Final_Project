@@ -400,10 +400,6 @@ Note that we're dealing with 2000 cases, so predict() will churn for a while bef
 
 
 ```{r}
-#install.packages("klaR", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/")
-#library(klaR)
-
-install.packages('e1071', dependencies = TRUE)
 library(e1071)
 
 # set up a training sample (70% of the data frame)
@@ -513,7 +509,7 @@ Here we draw a word cloud to visualize the words frquently found in our product 
 Note, there's no "word" column, you'll have to use tidyr to reshape the data...
 
 
-```{r}
+```{r eval=FALSE}
 install.packages("wordcloud", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # word-cloud generator 
 install.packages("RColorBrewer", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # color palettes
 
@@ -529,7 +525,7 @@ wordcloud(words = df_for_model$word, freq = df_for_model$freq, min.freq = 20,
 ```
 
 We can also view a barplot of the most frequent terms
-```{r}
+```{r eval=FALSE}
 barplot(df_for_model[1:25,]$freq, las = 2, names.arg = df_for_model[1:25,]$word,
         col ="lightblue", main ="Most frequent words",
         ylab = "Word frequencies")
