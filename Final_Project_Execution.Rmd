@@ -460,38 +460,6 @@ table(prediction, df_for_model$review_category)
 prediction<-predict(model, newdata=df_for_model[df_test,c(distinctive_terms)])
 table(prediction, df_for_model[df_test,"review_category"] )
 
-#Not sure what you wanted to plot here, Karen -- strength of predictors?
-
-#nb.res <- NaiveBayes(review_category ~ ., data=df_for_model[df_train,])
-
-# show the results
-#opar <- par(mfrow=c(2,4))
-#plot(nb.res)
-#par(opar)
-
-# predict on holdout units
-#nb.pred <- predict(nb.res, df_for_model[-df_train,])
-
-# raw accuracy
-#confusion.mat <- table(nb.pred$class, df_for_model[-df_train,"satire"])
-#sum(diag(confusion.mat))/sum(confusion.mat)
-
-# Or we could use code like this: (lets see which way works)
-
-
-#sub = sample(nrow(df), floor(nrow(df) * 0.8))
-#train = df[sub,]
-#test = df[-sub,]
-
-#xTrain = train[,-classificationcolnumber]
-#yTrain = train$satire
-
-#xTest = test[,-classificationcolnumber]
-#yTest = test$satire
-
-#model = train(xTrain,yTrain,'nb',trControl=trainControl(method='cv',number=10))
-
-#prop.table(table(predict(model$finalModel,xTest)$class,yTest))
 
 
 ```
