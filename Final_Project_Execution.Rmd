@@ -1,6 +1,6 @@
 ---
 title: "IS 607 Final Project"
-author: "The Karens"
+author: "The Karens: (Karen) Joy Payton and Karen Weigandt"
 date: "Fall 2015"
 output: 
   html_document: 
@@ -13,7 +13,6 @@ output:
 
 Satire and Data Science : An Exploration into one of the Current Final Frontiers
 
-
 ## Project Participants: 
 
 Joy Payton and Karen Weigandt
@@ -23,6 +22,8 @@ Joy Payton and Karen Weigandt
 This project is inspired by the Hutzler 571 Banana Slicer, and other products that really do exist, as hard as it is to believe (like Bic Cristal For Her pens and theft deterrent moldy sandwich bags) .  Joy Payton is the originator of the idea for the analysis, and Karen Weigandt is a collector of kitchen gadgets of the incredibly useless variety.
 
 This project is actually not only fun and entertaining, it is based on real social need.  Satire is used as a tool to inspire change through humor and wit.  It allows us to look at situations with a critical eye, and hopefully grow with the introspection that naturally follows.  For many in the Asperger's and autism community, this understanding does not come naturally, though the capability and intelligence lies within.  In learning how to break it down into something that can be analyzed by a computer, we need to dissect the elements down into quantifiable differences, which can become teachable moments.  This is a process that can be useful in a variety of situations, as our society and interactions become more complex as time goes on.
+
+This study has been undertaken in partial fulfillment of the Data Analytics Masters Degree at The City University of New York, in the IS 607 course.
 
 ## Project Goals:
 
@@ -37,14 +38,16 @@ For our workflow, we have chosen to use the OSEMN model:  We will
 - Obtain
 - Scrub
 - Explore
-- Model, and
+- Model
 _ iNterpret 
 
 Amazon product reviews with an eye toward developing a satire detection model.
 
-## A Few Caveats
+## A Few Caveats vis-a-vis Obtaining Data
 
-After triggering the Amazon "robot check" several times (and being confused as to why data extraction was failing!), we have placed Sys.sleep() commands in a number of places to keep this from happening.  This means that the script takes a surprisingly long time to run.  This is a known issue and a condition of data gathering.
+After triggering the Amazon "robot check" several times (and being confused as to why data extraction was failing!), we have placed Sys.sleep() commands in a number of places to keep this from happening and have made duplicate data available in a GitHub repository.  
+
+The Sys.sleep() commands as well as the memory-intensive data mining tasks we undertake cause the script to take a surprisingly long time to run.  This is a known issue and a condition of data gathering.
 
 Another challenge was the offensive word list used, which was comprehensive to the point of being overly sensitive. 
 
@@ -55,42 +58,42 @@ Another challenge was the offensive word list used, which was comprehensive to t
 The URL for the first page of the Hutzler Banana Slicer can be found here: <http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=1>.  Additional pages can be found by changing the last GET parameter to pageNumber=2, 3, etc.
 
 By using the element inspector of Chrome, we can peek into the html structure and discover that each review is structured in this way:
-```
-div with class "reviews" holds all reviews
-  div with class "review" holds a single review
-    div with class "helpful-votes-count" has text describing how helpful the review has been to other users
-    span with class "a-icon-alt" has text describing the number of stars
-    \<a\> with class "review-title" has title of the review
-    \<a\> with class "author" has the username of the reviewer
-    span with class "review-date" has text containing the date of the review
-    span with class "review-text" contains the review text
-```    
+
+- div with class "reviews" holds all reviews
+  - div with class "review" holds a single review
+    - div with class "helpful-votes-count" has text describing how helpful the review has been to other users
+    - span with class "a-icon-alt" has text describing the number of stars
+    - \<a\> with class "review-title" has title of the review
+    - \<a\> with class "author" has the username of the reviewer
+    - span with class "review-date" has text containing the date of the review
+    - span with class "review-text" contains the review text
+
+
 ## Tool Preparation
 
 First, we need to install and load rvest, dplyr, and stringi.  We'll also load a few packages even though I'm not using them just yet.  They'll come in handy later!  Note that you may have to install packages that are not present in your own R environment.
-```{r}
+```{r tool-prep}
 library(rvest)
 library(plyr)
 library(stringi)
 library(dplyr)
 library(stringr)
-library(quanteda)
 library(RCurl)
 library(class)
 ```
+
 ## Getting the Amazon Reviews
 
 First, we'll set up the local directories where the satire and serious reviews will live:
 
-```{r}
+```{r create-directories}
 dir.create("amazon_satire", showWarnings = FALSE)
 dir.create("amazon_serious", showWarnings = FALSE)
 ```
 
 _Note: the code block below demonstrates how to obtain fresh reviews from Amazon.  Instead of issuing repeated calls to Amazon's servers, we have opted to save a copy of the html as it appeared on December 9, 2015 and place it in our GitHub repository.  This html will be removed at the end of this semester in deference to the intellectual property rights of Amazon over this content._
 
-
-```{r eval=FALSE}
+```{r get-Amazon-from-Amazon, eval=FALSE}
 getAmazonHTML<- function(base_url, num_pages=20, corpus_identifier){
   
 # We obtain the html once only.  This way, if we have to test various ways to 
@@ -114,7 +117,7 @@ return(directory_name)
 
 _Note: the code block below shows how we can instead populate our local file system with copies taken from GitHub, sparing Amazon the extra network traffic._
 
-```{r eval=TRUE}
+```{r get-Amazon-from-GitHub, eval=TRUE}
 getAmazonHTML<- function(base_url, num_pages=20, corpus_identifier){
 
 # We obtain the html from GitHub, which represents a copy of what was on Amazon
@@ -130,7 +133,6 @@ for (i in 1:num_pages) {
   current_url<-paste("https://raw.githubusercontent.com/pm0kjp/IS607_Final_Project/master/", remote_directory_name, "/Page-", i, ".html", sep="")
   filename<-paste(local_directory_name, "/Page-", i, ".html", sep="")
   download.file(current_url, filename, method="libcurl")
-  Sys.sleep(1) 
 }
 return(local_directory_name)
 }
@@ -138,12 +140,15 @@ return(local_directory_name)
 
 
 In order to create a data frame with review text and related metadata, we will create a function that will accomplish several tasks:  
+
 - It will download the first n pages of reviews (default is n=20) and store the html in the file system of the local computer.
 - It will then use rvest to extract only the review from the html files saved to the file system
 - Finally, it will clean the data and return a data frame.
 
+_Note that this function, for the purposes of this project, provides both obtaining and scrubbing functions in our data science model._
 
-```{r}
+
+```{r parse-html}
 getReviews <-function(base_url, num_pages=20, corpus_identifier) {
 
 # Get the HTML using the function we defined (either grabbing it directly from Amazon, or from our project GitHub.)
@@ -187,11 +192,9 @@ return(amazon_reviews)
 
 Now we can use that function to get as many pages of reviews as we want from as many products as we want. Besides the data for the Banana Slicer, we're also interested in reviews on the Bic Cristal For Her pen, the Denon AKDL1 Dedicated Link Cable (Discontinued by Manufacturer), Uranium Ore, and the Samsung UN85S9 Framed 85-Inch 4K Ultra HD 3D Smart LED TV, all of which are characterized by (seemingly 100%) satirical reviews.
 
-Please note that running this script multiple times will result in an error, because of a robot check!
+We add satire reviews to data frames, each one representing a product, with 200 rows representing individual reviews:
 
-Satire reviews:
-
-```{r}
+```{r nab-satire-reviews}
 banana_slicer_reviews<-getReviews("http://www.amazon.com/Hutzler-571-Banana-Slicer/product-reviews/B0047E0EII/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_satire")
 bic_reviews<-getReviews("http://www.amazon.com/BIC-Cristal-1-0mm-Black-MSLP16-Blk/product-reviews/B004F9QBE6/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
 cable_reviews<-getReviews("http://www.amazon.com/Denon-AKDL1-Dedicated-Discontinued-Manufacturer/product-reviews/B000I1X6PM/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
@@ -199,10 +202,9 @@ uranium_reviews<-getReviews("http://www.amazon.com/Images-SI-Inc-Uranium-Ore/pro
 tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN85S9-Framed-85-Inch-Ultra/product-reviews/B00CMEN95U/?sortBy=bySubmissionDateDescending&pageNumber=", corpus_identifier="amazon_satire")
 ```
 
+We do the same for our serious reviews: 
 
-Serious reviews: 
-
-```{r}
+```{r nab-serious-reviews}
 apple_slicer_reviews<-getReviews("http://www.amazon.com/OXO-Grips-Apple-Corer-Divider/product-reviews/B00004OCKT/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 pen_reviews<-getReviews("http://www.amazon.com/BIC-Velocity-1-6mm-Black-VLGB11-Blk/product-reviews/B004F9QBDC/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
 hdmi_cable_reviews<-getReviews("http://www.amazon.com/Mediabridge-ULTRA-HDMI-Cable-25-Feet/product-reviews/B0031TRZX2/?sortBy=byRankDescending&pageNumber=", corpus_identifier="amazon_serious")
@@ -217,21 +219,19 @@ normal_tv_reviews<-getReviews("http://www.amazon.com/Samsung-UN40J5200-40-Inch-1
 
 Here we can do basic stats that don't require text mining: like number of words per review, number of words per title, number of words in all caps, etc.  Again, we'll create a function that will allow us to apply the analysis to any data frame.
 
-__We could also here count non-dictionary words, which might indicate humor / satire ... this could be a way to include a different data source, like a dictionary CSV...  OR we could get a list of high sentiment words, which could also be an indicator.__
+We'll also count offensive terms, which we've obtained from <http://www.cs.cmu.edu/~biglou/resources/bad-words.txt>
 
-Here's a link for offensive terms:  http://www.cs.cmu.edu/~biglou/resources/bad-words.txt
-Also I've added a list of positive and negative sentiment words to the repo.
-
-```{r}
+```{r get-offensive-word-list}
 offensive<-unlist(read.table("http://www.cs.cmu.edu/~biglou/resources/bad-words.txt"))
 # Add spaces on either side to tokenize the offensive.  
 # The reason is that we don't want to hit on "ho", let's say, if the word 
 # is "holiday".  Only if "ho" is used as a word in and of itself.
 offensive<-paste(" ",offensive," ",sep="")
 ```
-__We could add those dictionaries to a free trial of Google SQL...  https://console.cloud.google.com/freetrial?pli=1 ___
 
-```{r}
+Now that we have the offensive terms in an R object, we can create a counting function, which will add new columns to the data frame passed to it.
+
+```{r count-words-fcn}
 countWords<-function (df) {
 # Count words
 df<-mutate(df, num_words_title = stri_count(title,regex="\\S+"))
@@ -247,11 +247,15 @@ df<-mutate(df, num_quest_title = stri_count(title,regex="\\?"))
 df<-mutate(df, num_quest_review = stri_count(text,regex="\\?"))
 # Count offensive
 df<-mutate(df, num_offensive_title = stri_count(title, regex=paste(offensive, collapse = "|")))
-df<-mutate(df, num_offensive_text = stri_count(text, regex=paste(offensive, collapse = "|")))
+df<-mutate(df, num_offensive_review = stri_count(text, regex=paste(offensive, collapse = "|")))
 
 return(df)
 }
+```
 
+In each data frame, let's count the elements we suspect might be indicative of satire: exclamation points, words in all capital letters, question marks, and offensive terms.
+
+```{r do-counting}
 banana_slicer_reviews<-countWords(banana_slicer_reviews)
 bic_reviews<-countWords(bic_reviews)
 cable_reviews<-countWords(cable_reviews)
@@ -263,26 +267,31 @@ pen_reviews<-countWords(pen_reviews)
 hdmi_cable_reviews<-countWords(hdmi_cable_reviews)
 gemstone_reviews<-countWords(gemstone_reviews)
 normal_tv_reviews<-countWords(normal_tv_reviews) 
+```
 
-# It probably makes sense for us to come up with a huge data frame that includes all the rows of the above
-# data frames with one more column stating the serious / satire category.
+It makes sense for us to come up with a huge data frame that includes all the rows of the above data frames with one more column stating the serious / satire category.
 
+```{r combine-satire-serious}
 satire_reviews<-rbind(banana_slicer_reviews,bic_reviews,cable_reviews,uranium_reviews,tv_reviews)
 satire_reviews$category<-"Satire"
 serious_reviews<-rbind(apple_slicer_reviews,pen_reviews,hdmi_cable_reviews,gemstone_reviews,normal_tv_reviews)
 serious_reviews$category<-"Serious"
 all_reviews<-rbind(satire_reviews,serious_reviews)
+```
 
-# Now we can do data vis like
+Now we can do a bit of data exploration with data visualization!
+
+```{r exploratory-data-viz}
 boxplot(all_reviews$num_excl_review~all_reviews$category)
-boxplot(all_reviews$num_offensive_text~all_reviews$category)  # Something here!
+boxplot(all_reviews$num_offensive_review~all_reviews$category)  # Something here!
 hist(all_reviews$num_words_review[which(all_reviews$category=="Satire")])
 hist(all_reviews$num_words_review[which(all_reviews$category=="Serious")])
 ```
+
 If we want to see if the offensive check is legit (maybe we are hitting on words that aren't really offensive in our opinion), we can do something like the following:
 
-```{r}
-bad_apples<-apple_slicer_reviews %>% filter (num_offensive_text > 0)
+```{r checking-offensive-terms}
+bad_apples<-apple_slicer_reviews %>% filter (num_offensive_review > 0)
 str_match_all(bad_apples$text, paste(offensive, collapse = "|"))
 ```
 
@@ -290,21 +299,18 @@ In this case, we're hitting on words that aren't really offensive, or only would
 If we think these terms will be found equally frequently in the satire and serious reviews, we can leave them be for now.  Regardless, we should consider paring down the list and removing some innocuous words like " black ", " knife ", " hole ", etc.  Other terms may still warrant inclusion, like " stupid ".
 
 
-
 ## Creating Corpora and TDM
  
 For preprocessing purposes, I will create one corpus for each kind of review (one "satire" corpus with its TDM, and one "serious" corpus with its TDM).  In each corpus, I'll treat the product names as stopwords (so that, for example, the satire corpus does not treat the term "banana", which appears in a product name, as a bellweather word).
 
-```{r}
+```{r get-tm-stuff}
 library(tm)
 library(SnowballC)
 ```
 
-```{r}
+We create a function that will take any of the data frames and create text files of the title and review text from each row, which will contribute to corpus creation.
 
-# I create a function that will take any of my data frames and create text files, which will contribute
-# to each corpus.
-
+```{r create-text-files-from-df-fcn}
 makeTextFiles <-function(corpus_name, df) {
 dir.create(corpus_name, showWarnings = FALSE) # don't bother telling us if the directory already exists
 for (i in 1:nrow(df)){
@@ -312,7 +318,11 @@ file_name<-paste(corpus_name, "/", deparse(substitute(df)), i, sep="")
 write(paste(df$title[i],df$text[i]), file_name)
 }
 }
+```
 
+We'll now use the function we created to write text files representing each row of each data frame.  While we could do that via a combined data frame, here we'll do it data frame by data frame, which preserves the name of the product in the file name, in case we need to do closer examination of any given text file.  We create two corpora, one serious, and one satire.
+
+```{r populate-text-files}
 makeTextFiles("amazon_satire/corpus", bic_reviews)
 makeTextFiles("amazon_satire/corpus", banana_slicer_reviews)
 makeTextFiles("amazon_satire/corpus", cable_reviews)
@@ -324,18 +334,13 @@ makeTextFiles("amazon_serious/corpus", apple_slicer_reviews)
 makeTextFiles("amazon_serious/corpus", hdmi_cable_reviews)
 makeTextFiles("amazon_serious/corpus", normal_tv_reviews)
 makeTextFiles("amazon_serious/corpus", gemstone_reviews)
+```
 
-# do cleanup here -- stemming, removal of punctuation, etc.
-# First we can try a standard bag-of-words, where we remove punctuation, set everything to 
-# lower case, and do word stemming. It could be that this does the trick.  If not,
-# we will have to do more conservative preprocessing to conserve non-word clues like
-# nonstandard punctuation or use of capital letters.
+As always in data science, our data science methodology is iterative, and we're back to the "scrubbing" task.  We need to do preprocessing of our corpora.  We'll try a standard bag-of-words, where we remove punctuation, set everything to lower case, and do word stemming.
 
-# We create a function to handle this preprocessing.  
-# The function takes as input a directory name where the corpus is found an an optional
-# string for providing additional stopwords (for example, removing words that are in
-# the name of the produc itself).
+We create a function to handle this preprocessing. The function takes as input a directory name where the corpus is found an an optional string for providing additional stopwords (for example, removing words that are in the name of the produc itself).
 
+```{r create-corpus-fcn}
 createCleanCorpus <- function(dir_name, special_stopwords="") {
   corpus<-Corpus(DirSource(dir_name))  
   corpus <- tm_map(corpus, removePunctuation)   
@@ -343,18 +348,21 @@ createCleanCorpus <- function(dir_name, special_stopwords="") {
   corpus <- tm_map(corpus, content_transformer(tolower))   
   corpus <- tm_map(corpus, removeWords, stopwords("english")) 
   stopwords_vector<-strsplit(special_stopwords, " ")[[1]]
-  corpus <- tm_map(corpus, removeWords, stopwords_vector) # remove special stopwords both before and 
+  corpus <- tm_map(corpus, removeWords, stopwords_vector) # remove special stopwords both before and ...
   corpus <- tm_map(corpus, stemDocument) 
-  corpus <- tm_map(corpus, removeWords, stopwords_vector) # after stemming.
+  corpus <- tm_map(corpus, removeWords, stopwords_vector) # ... after stemming.
   return(corpus)
 }
+```
 
-satire_corpus<-createCleanCorpus("amazon_satire/corpus", "hutzler banana slice slicer bic cristal pen for her denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore")
+Using the function we just defined, we'll build two corpora and obtain the term document matrix for each:
+
+```{r build-corpora}
+satire_corpus<-createCleanCorpus("amazon_satire/corpus", "hutzler banana slice slicer bic cristal pen for her woman women  man men female feminin denon akdl dedicated link cable discontinued by manufacturer samsung uns framed inch k ultra hd d smart led tv uranium ore tvs hdmi ")
 
 satire_tdm <- TermDocumentMatrix(satire_corpus)   
 
-
-serious_corpus<-createCleanCorpus("amazon_serious/corpus", "oxo apple grip core corer divide divider slice slicer bic pen velocity mediabridge hdmi black ultra cable feet madagascar gemstone gemstones stone stones labradorite septarian chrysocolla samsung inch p unj smart tv")
+serious_corpus<-createCleanCorpus("amazon_serious/corpus", "oxo apple grip core corer divide divider slice slicer bic pen velocity mediabridge hdmi black ultra cable feet madagascar gemstone gemstones stone stones labradorite septarian chrysocolla samsung inch p unj smart tv televis tvs display")
 
 serious_tdm <- TermDocumentMatrix(serious_corpus)   
 
@@ -362,7 +370,7 @@ serious_tdm <- TermDocumentMatrix(serious_corpus)
 
 Now that we have our TDMs, we want to attach the category ("satire" or "serious") to the Term Document Matrix.  We'll transpose the matrix as well.
 
-```{r}
+```{r label-tdm}
 bindCategoryTDM<- function(tdm, category){
   transposed_matrix<-t(data.matrix(tdm))
   df<-as.data.frame(transposed_matrix, stringsAsFactors = FALSE)
@@ -377,30 +385,25 @@ serious_df<-bindCategoryTDM(serious_tdm, "serious")
 
 We'll stack the two data frames, replacing any NA with 0, and moving the category variable to the front
 
-```{r}
+```{r stack-satire-serious-df}
 df_for_model<-rbind.fill(satire_df,serious_df)
 df_for_model[is.na(df_for_model)]<-0
 df_for_model<-df_for_model %>% dplyr::select(review_category, everything())
 ```
 
-Let's take a look at what we have.  We'll take a look at the first and last 5 columns.
+Let's take a look at what we have.  We'll take a look at the first five and last columns.
 
-```{r}
-head(df_for_model[, c(1:5, 9963:9967)])
+```{r peek-tdm}
+head(df_for_model[, c(1:5, ncol(df_for_model))])
 ```
 
 # Modeling Data
 
-For the modeling step, I did some research, and I think the way to go is to use naive Bayes analysis.
+_Note: we initially tried to use the klaR Naive Bayes, but found that where there is a variance of 0, klAr throws an error (see http://stats.stackexchange.com/questions/35694/naive-bayes-fails-with-a-perfect-predictor).  For this reason, we moved toward the use of the e1071 package._
 
-It is supposed to be simple code and work well for our type of application.
+Note that we're dealing with 2000 cases, so predict() will churn for a while before completing.  For this reason, it is added in a separate code block with eval set to FALSE.  
 
-Note: we initially tried to use the klaR Naive Bayes, but found that where there is a variance of 0, klAr throws an error (see http://stats.stackexchange.com/questions/35694/naive-bayes-fails-with-a-perfect-predictor).  For this reason, we moved toward the use of the e1071 package.
-
-Note that we're dealing with 2000 cases, so predict() will churn for a while before completing.
-
-
-```{r}
+```{r prepare-nb}
 library(e1071)
 
 # set up a training sample (70% of the data frame)
@@ -408,7 +411,9 @@ df_train <- sample(1:nrow(df_for_model), ceiling(nrow(df_for_model)* 0.7), repla
 
 # and a testing sample that excludes the above:
 df_test <- (1:nrow(df_for_model))[-df_train]
+```
 
+```{r first-try-nb, eval=FALSE}
 # Construct the model, using the training sample, and apply it across the board to see its fit:
 
 model<-naiveBayes(review_category ~ ., data=df_for_model[df_train,])
@@ -419,22 +424,23 @@ table(prediction, df_for_model$review_category)
 prediction<-predict(model, newdata=df_for_model[df_test,-1])
 table(prediction, df_for_model[df_test,"review_category"] )
 
-# Not sure why everything is showing up as "serious"...
+# Unfortunately this is not a good model!  Everything shows up as "serious", except for one 
+# correctly classified satire text.
+```
 
-# We'll try KNN.
+The results from our model's prediction are discouraging.  They are reproduced here in case one does not wish to spend the CPU cycles and/or time required to execute the prediction:
 
-knn_model<-knn(df_for_model[df_train, -1], df_for_model[df_test, -1], df_for_model[df_train, 1])
-confusion_matrix<-table("Predictions" = knn_model, "Actual" = df_for_model[df_test,1])
-confusion_matrix
+```      
+## prediction satire serious
+##    satire       0       1
+##    serious   1000     999
+```
 
-accuracy<-sum(diag(confusion_matrix) / length(df_test)) * 100
-accuracy
+As we can see, this initial attempt at Naive Bayes failed, and took a very long time to arrive at its predictions.  What if we selected only some words, the words that were most distinctive for the satire corpus and the most distinctive words for the serious corpus?
 
-# Well, it's better than Bayes for sure, but not fantastic.  68.5% accuracy on satire vs. serious classification.
+```{r limited-bayes}
 
-# What if we tried to discern the important words and came up with a different nb model?
-
-# First, find the terms that appear in each corpus > 30X
+# First, find the terms that appear in each TDM > 30X
 satire_terms<-findFreqTerms(satire_tdm, 30)
 serious_terms<-findFreqTerms(serious_tdm, 30)
 
@@ -445,10 +451,11 @@ satire_distinctive_terms<-setdiff(satire_terms, serious_terms)
 serious_distinctive_terms<-setdiff(serious_terms, satire_terms)
 
 distinctive_terms<-c(satire_distinctive_terms, serious_distinctive_terms)
+distinctive_terms
 
 # Note that when we look at these terms, there seems to be overfitting: we are capturing words that 
 # are specific to the products being reviewed.  We should consider going back and adding additional
-# product-specific keywords.
+# product-specific keywords if we expand the scope of this project.
 
 # Now let's try Naive Bayes with this limited bank of words:
 
@@ -459,9 +466,22 @@ table(prediction, df_for_model$review_category)
 # Apply the model to just the test data (not used in training):
 prediction<-predict(model, newdata=df_for_model[df_test,c(distinctive_terms)])
 table(prediction, df_for_model[df_test,"review_category"] )
+```
+
+As we can see, limiting the scope of variables has helped our Naive Bayes model, both in effectiveness and speed.
+
+What if we attempted a K Nearest Neighbor algorithm instead?  We'll try it with all the terms, not the limited pool of most distinctive words, to see what we come up with.
 
 
+```{r knn}
+# We'll try KNN.
 
+knn_model<-knn(df_for_model[df_train, -1], df_for_model[df_test, -1], df_for_model[df_train, 1])
+confusion_matrix<-table("Predictions" = knn_model, "Actual" = df_for_model[df_test,1])
+confusion_matrix
+
+accuracy<-sum(diag(confusion_matrix) / length(df_test)) * 100
+accuracy
 ```
 
 
