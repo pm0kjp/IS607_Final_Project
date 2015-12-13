@@ -568,4 +568,9 @@ ggplot(serious_freq_df[1:25,], aes(x = words, y = freq)) + geom_bar(stat = "iden
 
 ```
 
-From the visualizations above, we can see that the words used in satire are 
+From the visualizations above, we can see that the words used extensively in satire are similar to those used in serious reviews.  This is one reason bag-of-words alone is not a workable model, even inclusive of sentiment analysis.
+
+The key insight gained from this project is that while satire is hard for humans to figure out, it becomes even more complex when you try to break it down into what separates it from standard language. Selecting and scraping the data (product reviews from amazon.com), using a database of sentiment analysis words, and exploring some of the fundamental indicators associated with satire in this environment gave us some insight into the difficulties facing the data science community as progress is made in this challenging endeavor.  The elements considered, and the model chosen have an enormous effect on the analysis results. Exploratory analysis and visualization is essential in building understanding of the influence of the different variables. Machine learning offers a way for the computer to gain its own “life” experience with satire. We chose to use a simple bag of words analysis for this project, and tested a couple of different algorithms. Since the first model did not give viable results, we retested this algorithm with a refined, more distinctive bag of words.
+
+One aspect of satire that is difficult to account for is the manner in which it references cultural and topical issues. Until this can be broken down into logical components (perhaps using some type of graph database) and a manner of implementation, I fear computers as well as humans will find that the assessment of satire will remain more of an art than a science.
+
