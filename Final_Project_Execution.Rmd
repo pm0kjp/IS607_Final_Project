@@ -493,10 +493,6 @@ It's hella hard to classify satire using bag-of-words -- describe findings from 
 Do some visualization of stuff like # of exclamation pts etc.
 
 
-Here we draw a word cloud to visualize the words frquently found in our product review corpus.
-
-Note, there's no "word" column, you'll have to use tidyr to reshape the data...
-
 
 ```{r eval=FALSE}
 install.packages("wordcloud", dependencies = TRUE, repos = "http://cran.mirrors.hoobly.com/") # word-cloud generator 
@@ -507,16 +503,47 @@ library(wordcloud)
 library(RColorBrewer)
 
 set.seed(2112)
-wordcloud(words = df_for_model$word, freq = df_for_model$freq, min.freq = 20,
+```
+
+We can create wordclouds and barplots to show thw most frequently used words in satirical reviews, and in serious reviews.
+
+```{r}
+# create a data frame for words and their frequency - satire
+
+sat_m <- as.matrix(satire_tdm) # convert tdm to matrix
+
+sat_m_sort <- sort(rowSums(sat_m), decreasing=TRUE) # sort by frequency, highest first
+
+sat_m_sort_df <- as.data.frame(sat_m_sort) # save the frequency values 
+
+satire_freq_df <- data.frame(words = row.names(sat_m_sort_df), freq = sat_m_sort_df$sat_m_sort) # create a data frame containing the words and their frequencies
+
+# Draw a word cloud
+set.seed(2112)
+wordcloud(words = satire_freq_df$words, freq = satire_freq_df$freq, min.freq = 20,
           max.words=100, random.order=TRUE, rot.per=0.30, 
           colors=brewer.pal(8, "Set1"))
 
+ggplot(satire_freq_df[1:25,], aes(x = words, y = freq)) + geom_bar(stat = "identity", fill="#FF9999", colour="black") + labs(title="Satire Word Frequencies")
 ```
 
-We can also view a barplot of the most frequent terms
-```{r eval=FALSE}
-barplot(df_for_model[1:25,]$freq, las = 2, names.arg = df_for_model[1:25,]$word,
-        col ="lightblue", main ="Most frequent words",
-        ylab = "Word frequencies")
+```{r}
+# create a data frame for words and their frequency - serious
+
+ser_m <- as.matrix(serious_tdm) # convert tdm to matrix
+
+ser_m_sort <- sort(rowSums(ser_m), decreasing=TRUE) # sort by frequency, highest first
+
+ser_m_sort_df <- as.data.frame(ser_m_sort) # save the frequency values 
+
+serious_freq_df <- data.frame(words = row.names(ser_m_sort_df), freq = ser_m_sort_df$ser_m_sort) # create a data frame containing the words and their frequencies
+
+# Draw a word cloud
+set.seed(2112)
+wordcloud(words = serious_freq_df$words, freq = serious_freq_df$freq, min.freq = 20,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Set1"))
+
+ggplot(serious_freq_df[1:25,], aes(x = words, y = freq)) + geom_bar(stat = "identity", fill="#56B4E9", colour="black") + labs(title="Serious Word Frequencies")
 
 ```
