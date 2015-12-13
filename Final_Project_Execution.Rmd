@@ -80,6 +80,8 @@ library(dplyr)
 library(stringr)
 library(RCurl)
 library(class)
+library(ggplot2)
+library(wordcloud)
 ```
 
 ## Getting the Amazon Reviews
@@ -283,10 +285,10 @@ Now we can do a bit of data exploration with data visualization!
 
 ```{r exploratory-data-viz}
 # Boxplot of offensive terms by category
-ggplot(all_reviews, aes(x = category, y= num_offensive_text)) + geom_boxplot() + ggtitle("Boxplot: Number of offensive terms by category")
+ggplot(all_reviews, aes(x = category, y= num_offensive_review)) + geom_boxplot() + ggtitle("Boxplot: Number of offensive terms by category")
 
 # We can see how the number of offensive words compares to the number of exclamation points in the reviews, and if this might differ for satire and serious reviews
-qplot(num_offensive_text, num_excl_review, data = all_reviews, color = category) + ggtitle("Number of Offensive Words vs. Number of Exclamation Points")
+qplot(num_offensive_review, num_excl_review, data = all_reviews, color = category) + ggtitle("Number of Offensive Words vs. Number of Exclamation Points")
 
 # We can also see if there how exclamations are related to the length of the reviews
 qplot(num_excl_review, num_words_review, data = all_reviews, color = category) + ggtitle("Exclamation vs. Number of Words")
@@ -511,7 +513,7 @@ accuracy
 
 We can see from some of the visualizations above that indicators like punctuation and capitalization, as well as length of reviews can signify that some reviews warrant closer inspection for satirical content, but are by no means definitive. Even combining these indicative elements is no guarantee of recognition of satire.
 
- A bag-of-words approach is an interesting exercise, but also by no means comprehensive enough for definitive classification. Let's llook at some visualizations of the vocabulary used in satirical vs. serious reviews.
+ A bag-of-words approach is an interesting exercise, but also by no means comprehensive enough for definitive classification. Let's look at some visualizations of the vocabulary used in satirical vs. serious reviews.
 
 
 ```{r eval=FALSE}
