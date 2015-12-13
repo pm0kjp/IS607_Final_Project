@@ -282,10 +282,32 @@ all_reviews<-rbind(satire_reviews,serious_reviews)
 Now we can do a bit of data exploration with data visualization!
 
 ```{r exploratory-data-viz}
-boxplot(all_reviews$num_excl_review~all_reviews$category)
-boxplot(all_reviews$num_offensive_review~all_reviews$category)  # Something here!
-hist(all_reviews$num_words_review[which(all_reviews$category=="Satire")])
-hist(all_reviews$num_words_review[which(all_reviews$category=="Serious")])
+# Boxplot of offensive terms by category
+ggplot(all_reviews, aes(x = category, y= num_offensive_text)) + geom_boxplot() + ggtitle("Boxplot: Number of offensive terms by category")
+
+# We can see how the number of offensive words compares to the number of exclamation points in the reviews, and if this might differ for satire and serious reviews
+qplot(num_offensive_text, num_excl_review, data = all_reviews, color = category) + ggtitle("Number of Offensive Words vs. Number of Exclamation Points")
+
+# We can also see if there how exclamations are related to the length of the reviews
+qplot(num_excl_review, num_words_review, data = all_reviews, color = category) + ggtitle("Exclamation vs. Number of Words")
+
+#and if capitalized words relate to the size of the review by category
+qplot(num_caps_review, num_words_review, data = all_reviews, color = category) + ggtitle("Capitalized Words  vs. Number of Words")
+
+# Another thing we can look at is whther the aggregation of these indicators shows any kind of pattern with respect to the category, when compared to the length of the reviews
+# Combine the indicators like exclamation points, question marks, capitals and offensive words into one value for each review
+sub_counts_df <- subset(all_reviews[, 8:16])
+sub_counts_df <- subset(sub_counts_df[, -8])
+sub_counts_df <- subset(sub_counts_df[, -6])
+sub_counts_df <- subset(sub_counts_df[, -4])
+sub_counts_df <- subset(sub_counts_df[, -2])
+sub_counts_df <- subset(sub_counts_df[, -1])
+sub_counts_df$indicate_tot <- rowSums(sub_counts_df)
+
+indicate_comp_df <- cbind.data.frame(sub_counts_df$indicate_tot, all_reviews$num_words_review, all_reviews$category)
+
+qplot(sub_counts_df$indicate_tot, all_reviews$num_words_review, data = indicate_comp_df, color = all_reviews$category) + ggtitle("Number of Indicators vs. Total Number of Words")
+
 ```
 
 If we want to see if the offensive check is legit (maybe we are hitting on words that aren't really offensive in our opinion), we can do something like the following:
@@ -296,8 +318,7 @@ str_match_all(bad_apples$text, paste(offensive, collapse = "|"))
 ```
 
 In this case, we're hitting on words that aren't really offensive, or only would be contextually.
-If we think these terms will be found equally frequently in the satire and serious reviews, we can leave them be for now.  Regardless, we should consider paring down the list and removing some innocuous words like " black ", " knife ", " hole ", etc.  Other terms may still warrant inclusion, like " stupid ".
-
+Since  these terms seem to be equitably distributed in the satire and serious reviews, we leave them be for now.  
 
 ## Creating Corpora and TDM
  
@@ -338,7 +359,7 @@ makeTextFiles("amazon_serious/corpus", gemstone_reviews)
 
 As always in data science, our data science methodology is iterative, and we're back to the "scrubbing" task.  We need to do preprocessing of our corpora.  We'll try a standard bag-of-words, where we remove punctuation, set everything to lower case, and do word stemming.
 
-We create a function to handle this preprocessing. The function takes as input a directory name where the corpus is found an an optional string for providing additional stopwords (for example, removing words that are in the name of the produc itself).
+We create a function to handle this preprocessing. The function takes as input a directory name where the corpus is found and an optional string for providing additional stopwords (for example, removing words that are in the name of the product itself).
 
 ```{r create-corpus-fcn}
 createCleanCorpus <- function(dir_name, special_stopwords="") {
@@ -454,8 +475,8 @@ distinctive_terms<-c(satire_distinctive_terms, serious_distinctive_terms)
 distinctive_terms
 
 # Note that when we look at these terms, there seems to be overfitting: we are capturing words that 
-# are specific to the products being reviewed.  We should consider going back and adding additional
-# product-specific keywords if we expand the scope of this project.
+# are specific to the products being reviewed.  We might consider going back and adding additional
+# product-specific keywords if we e to expand the scope of this project.
 
 # Now let's try Naive Bayes with this limited bank of words:
 
@@ -488,10 +509,9 @@ accuracy
 
 # Interpreting Data
 
-It's hella hard to classify satire using bag-of-words -- describe findings from last section here.
+We can see from some of the visualizations above that indicators like punctuation and capitalization, as well as length of reviews can signify that some reviews warrant closer inspection for satirical content, but are by no means definitive. Even combining these indicative elements is no guarantee of recognition of satire.
 
-Do some visualization of stuff like # of exclamation pts etc.
-
+ A bag-of-words approach is an interesting exercise, but also by no means comprehensive enough for definitive classification. Let's llook at some visualizations of the vocabulary used in satirical vs. serious reviews.
 
 
 ```{r eval=FALSE}
@@ -502,12 +522,12 @@ library(ggplot2)
 library(wordcloud)
 library(RColorBrewer)
 
-set.seed(2112)
 ```
 
 We can create wordclouds and barplots to show thw most frequently used words in satirical reviews, and in serious reviews.
 
 ```{r}
+
 # create a data frame for words and their frequency - satire
 
 sat_m <- as.matrix(satire_tdm) # convert tdm to matrix
@@ -519,7 +539,7 @@ sat_m_sort_df <- as.data.frame(sat_m_sort) # save the frequency values
 satire_freq_df <- data.frame(words = row.names(sat_m_sort_df), freq = sat_m_sort_df$sat_m_sort) # create a data frame containing the words and their frequencies
 
 # Draw a word cloud
-set.seed(2112)
+set.seed(2112) # Set seed for reproducibility
 wordcloud(words = satire_freq_df$words, freq = satire_freq_df$freq, min.freq = 20,
           max.words=100, random.order=TRUE, rot.per=0.30, 
           colors=brewer.pal(8, "Set1"))
@@ -547,3 +567,5 @@ wordcloud(words = serious_freq_df$words, freq = serious_freq_df$freq, min.freq =
 ggplot(serious_freq_df[1:25,], aes(x = words, y = freq)) + geom_bar(stat = "identity", fill="#56B4E9", colour="black") + labs(title="Serious Word Frequencies")
 
 ```
+
+From the visualizations above, we can see that the words used in satire are 
